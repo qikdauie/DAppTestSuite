@@ -736,3 +736,4 @@ export async function advancedCrossOriginPollutionTest() {
 export async function ultimateHeaderInjectionTest() {
   return (await adversarialBreakTests()).results.ultimate_header_injection;
 }
+
