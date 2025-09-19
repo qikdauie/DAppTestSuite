@@ -10,7 +10,7 @@
  *   does not become available within the readiness timeout.
  * - RPC calls include a safety timeout and will reject if no response arrives.
  *
- * @param {string} [swUrl='/public/worker/sw.js'] URL of the Service Worker script.
+ * @param {string} [swUrl='/worker/sw.js'] URL of the Service Worker script.
  * @returns {Promise<{
  *   getDID: () => Promise<any>,
  *   pack: (dest: string, type: string, body: any, sign?: boolean, encrypt?: boolean) => Promise<any>,
@@ -25,7 +25,7 @@
  *   intentRequest: (dest: string, requestBody: any, opts?: { waitForResult?: boolean, timeout?: number }) => Promise<any>
  * }>} Resolves with the client API.
  */
-export async function connectMessenger(swUrl = '/public/worker/sw.js') {
+export async function connectMessenger(swUrl = '/worker/sw.js') {
   if (!('serviceWorker' in navigator)) {
     throw new Error('Service Workers are not supported in this environment.');
   }

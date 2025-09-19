@@ -115,7 +115,7 @@ export default function IntentLab() {
       if (!reg) {
         const regs = await withTimeout(navigator.serviceWorker.getRegistrations());
         if (Array.isArray(regs)) {
-          reg = regs.find(r => (r?.active?.scriptURL?.includes('/public/worker/sw.js')) || r?.scope?.includes('/public/worker/')) || null;
+          reg = regs.find(r => (r?.active?.scriptURL?.includes('/worker/sw.js')) || r?.scope?.includes('/worker/')) || null;
         }
       }
       if (reg?.active) {
@@ -125,7 +125,7 @@ export default function IntentLab() {
       }
 
       // Best-effort registration; time-bounded
-      const newReg = await withTimeout(navigator.serviceWorker.register('/public/worker/sw.js', { type: 'module' }), 800);
+      const newReg = await withTimeout(navigator.serviceWorker.register('/worker/sw.js', { type: 'module' }), 800);
       if (newReg?.active) {
         console.log('postToServiceWorker -> newReg.active.postMessage');
         newReg.active.postMessage(message);
