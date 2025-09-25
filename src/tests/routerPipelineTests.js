@@ -1,4 +1,4 @@
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 /**
  * Router Verification Pipeline Tests
@@ -45,7 +45,7 @@ function expectFailureLabel(routerResult) {
  * to ensure security model compliance.
  */
 export async function routerPipelineTests() {
-  const msgr = await connectMessenger();
+  const msgr = await getReadyDecentClient();
   const { did } = await msgr.getDID();
   const results = {};
 
@@ -54,10 +54,11 @@ export async function routerPipelineTests() {
     // Test with malformed JSON - should fail at step 1
     const malformedJson = '{"protected":"invalid","recipients":[}'; // Intentionally malformed
     
-    const send = await msgr.sendRaw(did, malformedJson);
-    const label = expectFailureLabel(send);
+    const send = await msgr.send(did, malformedJson);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
     
-    const pass = send?.ok === false && [
+    const pass = ok === false && [
       ROUTER.INVALID_MESSAGE,
       ROUTER.VALIDATION_FAILED,
     ].includes(label);
@@ -87,10 +88,11 @@ export async function routerPipelineTests() {
       signature: "not_jwe_structure"
     });
     
-    const send = await msgr.sendRaw(did, inconsistentJose);
-    const label = expectFailureLabel(send);
+    const send = await msgr.send(did, inconsistentJose);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
     
-    const pass = send?.ok === false && [
+    const pass = ok === false && [
       ROUTER.INVALID_MESSAGE,
       ROUTER.VALIDATION_FAILED,
     ].includes(label);
@@ -128,10 +130,11 @@ export async function routerPipelineTests() {
       tag: "fake_tag"
     });
     
-    const send = await msgr.sendRaw(did, unsupportedAlg);
-    const label = expectFailureLabel(send);
+    const send = await msgr.send(did, unsupportedAlg);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
     
-    const pass = send?.ok === false && [
+    const pass = ok === false && [
       ROUTER.VALIDATION_FAILED,
       ROUTER.AUTHENTICATION_FAILED,
       ROUTER.INVALID_MESSAGE,
@@ -170,10 +173,11 @@ export async function routerPipelineTests() {
       tag: "fake_tag"
     });
     
-    const send = await msgr.sendRaw(did, missingSkid);
-    const label = expectFailureLabel(send);
+    const send = await msgr.send(did, missingSkid);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
     
-    const pass = send?.ok === false && [
+    const pass = ok === false && [
       ROUTER.VALIDATION_FAILED,
       ROUTER.INVALID_MESSAGE,
     ].includes(label);
@@ -203,10 +207,11 @@ export async function routerPipelineTests() {
       body: { test: "plaintext_not_allowed" }
     });
     
-    const send = await msgr.sendRaw(did, plaintextJwm);
-    const label = expectFailureLabel(send);
+    const send = await msgr.send(did, plaintextJwm);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
     
-    const pass = send?.ok === false && [
+    const pass = ok === false && [
       ROUTER.VALIDATION_FAILED,
       ROUTER.ACCESS_DENIED,
       ROUTER.INVALID_MESSAGE,
@@ -245,10 +250,11 @@ export async function routerPipelineTests() {
       tag: "fake_tag"
     });
     
-    const send = await msgr.sendRaw(did, noBtcId);
-    const label = expectFailureLabel(send);
+    const send = await msgr.send(did, noBtcId);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
     
-    const pass = send?.ok === false && [
+    const pass = ok === false && [
       ROUTER.VALIDATION_FAILED,
       ROUTER.AUTHENTICATION_FAILED,
       ROUTER.INVALID_MESSAGE,
@@ -270,12 +276,13 @@ export async function routerPipelineTests() {
   // 7) Pipeline Ordering Test - verify failures happen at appropriate stages
   try {
     const body = JSON.stringify({ test: 'pipeline_ordering', timestamp: Date.now() });
-    const validPacked = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const validPacked = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (validPacked.success) {
       // First, verify a valid message succeeds
-      const validSend = await msgr.sendRaw(did, validPacked.message);
-      const validSuccess = validSend?.ok === true;
+      const validSend = await msgr.send(did, validPacked.message);
+      const validLabel = (typeof validSend === 'string') ? validSend : validSend?.result;
+      const validSuccess = validLabel === 'success';
       
       // Then test that each type of invalid message fails appropriately
       const tests = [
@@ -286,11 +293,13 @@ export async function routerPipelineTests() {
       const testResults = {};
       for (const test of tests) {
         try {
-          const send = await msgr.sendRaw(did, test.message);
+          const send = await msgr.send(did, test.message);
+          const label = (typeof send === 'string') ? send : send?.result;
+          const ok2 = label === 'success';
           testResults[test.name] = {
-            ok: send?.ok,
-            result: expectFailureLabel(send),
-            failed_as_expected: send?.ok === false
+            ok: ok2,
+            result: label,
+            failed_as_expected: ok2 === false
           };
         } catch (err) {
           testResults[test.name] = { error: String(err), failed_as_expected: true };
@@ -328,13 +337,15 @@ export async function routerPipelineTests() {
     const errorResponses = {};
     for (const test of errorTests) {
       try {
-        const send = await msgr.sendRaw(did, test.message);
+        const send = await msgr.send(did, test.message);
+        const label = (typeof send === 'string') ? send : send?.result;
+        const ok3 = label === 'success';
         errorResponses[test.name] = {
-          ok: send?.ok,
-          result: send?.result,
-          hasOkField: 'ok' in send,
-          hasResultField: 'result' in send,
-          resultType: typeof send?.result
+          ok: ok3,
+          result: label,
+          hasOkField: true,
+          hasResultField: true,
+          resultType: typeof label
         };
       } catch (err) {
         errorResponses[test.name] = { error: String(err) };

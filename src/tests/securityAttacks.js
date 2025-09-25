@@ -1,4 +1,4 @@
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 function ok(v) { return v === true || v === 'success' || v?.ok === true; }
 
@@ -42,7 +42,7 @@ function makeOversizeBody() {
 }
 
 export async function securityAttackTests() {
-  const msgr = await connectMessenger();
+  const msgr = await getReadyDecentClient();
   const { did } = await msgr.getDID();
 
   const results = {};
@@ -50,7 +50,7 @@ export async function securityAttackTests() {
   // 1) Plaintext unicast enforcement - PDM auto-encrypts all unicast per security model §3.1
   try {
     const bodyJson = JSON.stringify({ attempt: 'verify_auto_encryption' });
-    const res = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', bodyJson, [], '');
+    const res = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', bodyJson, [], '');
     
     // PDM should always return encrypted JWE for unicast, never plaintext
     if (res.success === true && res.message) {
@@ -97,9 +97,10 @@ export async function securityAttackTests() {
       payload: btoa('test'),
       signature: '00'.repeat(8)
     });
-    const send = await msgr.sendRaw(did, jwsLike);
-    const label = expectFailureLabel(send);
-    const pass = send?.ok === false && [
+    const send = await msgr.send(did, jwsLike);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
+    const pass = ok === false && [
       ROUTER.INVALID_MESSAGE,
       ROUTER.ACCESS_DENIED,
       ROUTER.VALIDATION_FAILED,
@@ -127,9 +128,10 @@ export async function securityAttackTests() {
       to: [did],
       body: { hello: 'world' }
     });
-    const send = await msgr.sendRaw(did, jwmPlain);
-    const label = expectFailureLabel(send);
-    const pass = send?.ok === false && [
+    const send = await msgr.send(did, jwmPlain);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
+    const pass = ok === false && [
       ROUTER.INVALID_MESSAGE,
       ROUTER.ACCESS_DENIED,
       ROUTER.VALIDATION_FAILED,
@@ -150,7 +152,7 @@ export async function securityAttackTests() {
   // 4) Oversize message limit (512 KiB per security model §7.3) - SKIPPED: enforcement not implemented
   try {
     const bigBody = makeOversizeBody();
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', bigBody, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', bigBody, [], '');
     const approximateSize = (packed?.message || '').length;
     
     results.oversize_limit_enforced = {
@@ -172,16 +174,17 @@ export async function securityAttackTests() {
   // 5) Tamper message_hash (simulate by mutating ciphertext) should fail on send
   try {
     const body = JSON.stringify({ attempt: 'tamper' });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     let mutated = packed?.message || '';
     // naive mutation: flip a character in the middle
     if (mutated.length > 10) {
       const i = Math.floor(mutated.length / 2);
       mutated = mutated.slice(0, i) + (mutated[i] === 'A' ? 'B' : 'A') + mutated.slice(i + 1);
     }
-    const send = await msgr.sendRaw(did, mutated);
-    const label = expectFailureLabel(send);
-    const pass = send?.ok === false && [
+    const send = await msgr.send(did, mutated);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
+    const pass = ok === false && [
       ROUTER.VALIDATION_FAILED,
       ROUTER.AUTHENTICATION_FAILED,
       ROUTER.INVALID_MESSAGE,
@@ -202,12 +205,15 @@ export async function securityAttackTests() {
   // 6) Replay: send the same packed twice; second should fail or be coalesced
   try {
     const body = JSON.stringify({ attempt: 'replay', n: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
-    const first = await msgr.sendRaw(did, packed?.message || '');
-    const second = await msgr.sendRaw(did, packed?.message || '');
-    const label2 = expectFailureLabel(second);
-    const pass = ok(first) && (
-      second?.ok === false && [
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const first = await msgr.send(did, packed?.message || '');
+    const second = await msgr.send(did, packed?.message || '');
+    const label1 = (typeof first === 'string') ? first : first?.result;
+    const ok1 = label1 === 'success';
+    const label2 = (typeof second === 'string') ? second : second?.result;
+    const ok2 = label2 === 'success';
+    const pass = ok1 && (
+      ok2 === false && [
         ROUTER.ABORTED,
         ROUTER.REQUEST_EXPIRED,
         ROUTER.VALIDATION_FAILED,
@@ -231,11 +237,12 @@ export async function securityAttackTests() {
   // 7) Backpressure: burst sends to attempt quota exceed (result may vary)
   try {
     const body = JSON.stringify({ attempt: 'burst', t: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     const messages = new Array(20).fill(packed?.message || '');
-    const sends = await Promise.all(messages.map(m => msgr.sendRaw(did, m)));
-    const labels = sends.map(s => expectFailureLabel(s));
-    const anyFail = sends.some(s => s?.ok === false);
+    const sends = await Promise.all(messages.map(m => msgr.send(did, m)));
+    const labels = sends.map(s => (typeof s === 'string') ? s : s?.result);
+    const oks = sends.map(s => ((typeof s === 'string') ? s : s?.result) === 'success');
+    const anyFail = oks.some(v => v === false);
     const anyRateLimited = labels.includes(ROUTER.RATE_LIMIT_EXCEEDED);
     results.backpressure_kicks_in = {
       pass: anyFail || anyRateLimited || sends.length > 0,
@@ -243,7 +250,7 @@ export async function securityAttackTests() {
         apis: ['packMessage', ...new Array(sends.length).fill('sendMessage')],
         responses: { packMessage: packed, sendMessages: sends, labels },
         count: sends.length,
-        failures: sends.filter(s => s?.ok === false).length,
+        failures: oks.filter(v => v === false).length,
         rateLimited: labels.filter(l => l === ROUTER.RATE_LIMIT_EXCEEDED).length
       }
     };
@@ -256,7 +263,7 @@ export async function securityAttackTests() {
   // 8) BTC ID tampering - verify Router rejects manipulated btc_id values
   try {
     const body = JSON.stringify({ attempt: 'btc_tamper', timestamp: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -268,10 +275,11 @@ export async function securityAttackTests() {
       parsed.protected = btoa(JSON.stringify(protectedHeader));
       const tamperedMessage = JSON.stringify(parsed);
       
-      const send = await msgr.sendRaw(did, tamperedMessage);
-      const label = expectFailureLabel(send);
+      const send = await msgr.send(did, tamperedMessage);
+      const label = (typeof send === 'string') ? send : send?.result;
+      const ok = label === 'success';
       
-      const pass = send?.ok === false && [
+      const pass = ok === false && [
         ROUTER.VALIDATION_FAILED,
         ROUTER.AUTHENTICATION_FAILED,
         ROUTER.INVALID_MESSAGE,
@@ -300,8 +308,8 @@ export async function securityAttackTests() {
     const body1 = JSON.stringify({ attempt: 'btc_reuse', content: 'first', timestamp: Date.now() });
     const body2 = JSON.stringify({ attempt: 'btc_reuse', content: 'second', timestamp: Date.now() + 1000 });
     
-    const packed1 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body1, [], '');
-    const packed2 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body2, [], '');
+    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body1, [], '');
+    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body2, [], '');
     
     if (packed1.success && packed2.success) {
       const parsed1 = JSON.parse(packed1.message);
@@ -315,10 +323,11 @@ export async function securityAttackTests() {
       parsed2.protected = btoa(JSON.stringify(header2));
       const reusedMessage = JSON.stringify(parsed2);
       
-      const send = await msgr.sendRaw(did, reusedMessage);
-      const label = expectFailureLabel(send);
+      const send = await msgr.send(did, reusedMessage);
+      const label = (typeof send === 'string') ? send : send?.result;
+      const ok = label === 'success';
       
-      const pass = send?.ok === false && [
+      const pass = ok === false && [
         ROUTER.VALIDATION_FAILED,
         ROUTER.AUTHENTICATION_FAILED,
         ROUTER.INVALID_MESSAGE,
@@ -346,7 +355,7 @@ export async function securityAttackTests() {
   // 10) Protected header structure validation - verify required fields
   try {
     const body = JSON.stringify({ attempt: 'header_validation', timestamp: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -380,7 +389,7 @@ export async function securityAttackTests() {
   // 11) JWE structure integrity - verify all required JWE components
   try {
     const body = JSON.stringify({ attempt: 'jwe_structure', timestamp: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -422,8 +431,9 @@ export async function securityAttackTests() {
       tag: "bad"
     });
     
-    const send = await msgr.sendRaw(did, malformedJwe);
-    const label = expectFailureLabel(send);
+    const send = await msgr.send(did, malformedJwe);
+    const label = (typeof send === 'string') ? send : send?.result;
+    const ok = label === 'success';
     
     // Should get specific validation error, not generic unknown-error
     const hasSpecificError = [
@@ -433,7 +443,7 @@ export async function securityAttackTests() {
     ].includes(label);
     
     results.error_code_specificity = {
-      pass: send?.ok === false && hasSpecificError,
+      pass: ok === false && hasSpecificError,
       detail: {
         apis: ['sendMessage'],
         responses: { sendMessage: send },

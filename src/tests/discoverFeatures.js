@@ -1,4 +1,4 @@
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 /**
  * Basic functional smoke-test for discoverFeatures()
@@ -7,15 +7,12 @@ import { connectMessenger } from '../sdk/messenger-client.js';
  * 3. Confirms a FeatureMap object is returned
  */
 export async function discoverFeaturesTest(matchers = ['https://*']) {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.discover !== 'function') {
-    throw new Error('connectMessenger().discover() is not available.');
-  }
+  const msgr = await getReadyDecentClient();
 
   let featureMap;
   let error = null;
   try {
-    featureMap = await msgr.discover(matchers, 600);
+    featureMap = await msgr.protocols.discover(matchers, 600);
   } catch (err) {
     error = err;
   }
@@ -28,7 +25,7 @@ export async function discoverFeaturesTest(matchers = ['https://*']) {
     response: featureMap,
     error: error ? error.message : null
   };
-} 
+}
 
 /**
  * Multi-instance feature divergence test
@@ -37,10 +34,7 @@ export async function discoverFeaturesTest(matchers = ['https://*']) {
  * This test queries broadly and then asserts at least one peer advertises each feature.
  */
 export async function discoverDivergentFeaturesTest() {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.discover !== 'function') {
-    throw new Error('connectMessenger().discover() is not available.');
-  }
+  const msgr = await getReadyDecentClient();
 
   const matchers = [
     'https://didcomm.org/issue-credential/2.0',
@@ -48,7 +42,7 @@ export async function discoverDivergentFeaturesTest() {
     'https://didcomm.org/basicmessage/2.0',
   ];
 
-  const caps = await msgr.discover(matchers, 800);
+  const caps = await msgr.protocols.discover(matchers, 800);
 
   const peers = Object.keys(caps || {});
   const featuresByPeer = Object.fromEntries(
@@ -89,10 +83,7 @@ export async function discoverDivergentFeaturesTest() {
  * Verifies that discover() accepts full query objects with 'match' and returns a FeatureMap.
  */
 export async function discoverFeaturesObjectQueryTest() {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.discover !== 'function') {
-    throw new Error('connectMessenger().discover() is not available.');
-  }
+  const msgr = await getReadyDecentClient();
 
   const queries = [
     { 'feature-type': 'protocol', match: 'https://didcomm.org/*' }
@@ -101,7 +92,7 @@ export async function discoverFeaturesObjectQueryTest() {
   let result = null;
   let error = null;
   try {
-    result = await msgr.discover(queries, 600);
+    result = await msgr.protocols.discover(queries, 600);
   } catch (err) {
     error = err;
   }

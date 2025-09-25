@@ -1,12 +1,6 @@
 import React, { useState } from 'react';
 import { peerDidSameTest } from './tests/peerDidSame';
-import { 
-  packMessageTest, 
-  packMessagePlainTest, 
-  packMessageSignedTest, 
-  packMessageEncryptedTest, 
-  packMessageSignedEncryptedTest 
-} from './tests/packMessage';
+import { packMessageTest } from './tests/packMessage';
 import { 
   unpackMessageTest, 
   unpackMessagePlainTest, 
@@ -15,15 +9,6 @@ import {
   unpackMessageSignedEncryptedTest 
 } from './tests/unpackMessage';
 import { discoverFeaturesTest } from './tests/discoverFeatures';
-import { 
-  discoverIntentProvidersTest,
-  discoverDivergentIntentsTest,
-  intentPickDatetimeTest,
-  intentShareTest,
-  intentComposeEmailTest,
-  intentOpenUrlTest,
-  intentPickFileTest
-} from './tests/appIntents';
 import {
   checkDidcommPermissionTest,
   checkMultipleDidcommPermissionsTest,
@@ -35,27 +20,7 @@ import Messenger from './Messenger';
 import IntentLab from './IntentLab';
 import SecurityLab from './SecurityLab';
 
-// Build intent flow scenarios based on which peer will provide them.
-const currentPort = (typeof window !== 'undefined' && window.location && window.location.port) ? window.location.port : '';
-const intentFlowScenarios = (() => {
-  if (currentPort === '3000') {
-    // Peer on 3001 provides SHARE
-    return [
-      { id: 'share', label: 'Share Text', execute: intentShareTest },
-      { id: 'openUrl', label: 'Open URL', execute: intentOpenUrlTest },
-    ];
-  }
-  if (currentPort === '3001') {
-    // Peer on 3000 provides PICK_DATETIME and COMPOSE_EMAIL
-    return [
-      { id: 'pickDatetime', label: 'Pick Date/Time', execute: intentPickDatetimeTest },
-      { id: 'composeEmail', label: 'Compose Email', execute: intentComposeEmailTest },
-      { id: 'pickFile', label: 'Pick File', execute: intentPickFileTest },
-    ];
-  }
-  // Fallback: hide flows to avoid "no provider" failures
-  return [];
-})();
+// App-intents basic tests removed; use IntentLab for interactive flows via SDK
 
 const tests = [
   {
@@ -65,14 +30,8 @@ const tests = [
   },
   {
     id: 'packMessage',
-    label: 'packMessage - All Scenarios',
-    execute: packMessageTest,
-    scenarios: [
-      { id: 'packPlain', label: 'Plain', execute: packMessagePlainTest },
-      { id: 'packSigned', label: 'Signed', execute: packMessageSignedTest },
-      { id: 'packEncrypted', label: 'Encrypted', execute: packMessageEncryptedTest },
-      { id: 'packSignedEncrypted', label: 'Signed+Encrypted', execute: packMessageSignedEncryptedTest },
-    ]
+    label: 'packMessage',
+    execute: packMessageTest
   },
   {
     id: 'unpackMessage',
@@ -90,22 +49,7 @@ const tests = [
     label: 'discoverFeatures broadcast',
     execute: discoverFeaturesTest,
   },
-  {
-    id: 'intentDiscover',
-    label: 'app-intents: discover providers',
-    execute: discoverIntentProvidersTest,
-  },
-  {
-    id: 'intentDivergence',
-    label: 'app-intents: divergent intents (3000 vs 3001)',
-    execute: discoverDivergentIntentsTest,
-  },
-  {
-    id: 'intentFlows',
-    label: 'app-intents: flows',
-    execute: async () => ({ pass: true }),
-    scenarios: intentFlowScenarios,
-  },
+  // App-intents tests are exercised via IntentLab
   {
     id: 'didcommPermissions',
     label: 'permissions: DIDComm permission APIs',

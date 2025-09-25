@@ -1,0 +1,4 @@
+[submodule "decent_app_sdk"]
+	path = decent_app_sdk
+	url = https://github.com/qikdauie/decent_app_sdk
+	branch = main

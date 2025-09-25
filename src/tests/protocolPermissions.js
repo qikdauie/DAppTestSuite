@@ -1,20 +1,17 @@
 // DIDComm Permissions API tests
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 const SAMPLE_PROTOCOL = 'https://didcomm.org/basicmessage/2.0';
 const SAMPLE_PROTOCOL_NAME = 'DEV-Basic Message';
 const SAMPLE_PROTOCOL_DESCRIPTION = 'DEV-Send a basic message to a DID';
-const SAMPLE_MESSAGE_TYPE = 'https://didcomm.org/basicmessage/2.0/send-message';
+const SAMPLE_MESSAGE_TYPE = 'https://didcomm.org/basicmessage/2.0/message';
 const SAMPLE_MESSAGE_TYPE_DESCRIPTION = 'DEV-Send a basic message to a DID';
 
 export async function checkDidcommPermissionTest(protocol = SAMPLE_PROTOCOL, messageTypeUri = SAMPLE_MESSAGE_TYPE) {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.checkDidcommPermission !== 'function') {
-    throw new Error('checkDidcommPermission RPC not available via messenger client.');
-  }
+  const msgr = await getReadyDecentClient();
   let result, error = null;
   try {
-    result = await msgr.checkDidcommPermission(protocol, messageTypeUri);
+    result = await msgr.permissions.check(protocol, messageTypeUri);
   } catch (err) {
     error = err;
   }
@@ -23,13 +20,10 @@ export async function checkDidcommPermissionTest(protocol = SAMPLE_PROTOCOL, mes
 }
 
 export async function checkMultipleDidcommPermissionsTest(protocols = ['https://didcomm.org/app-intent/1.0'], messageTypeUris = [SAMPLE_MESSAGE_TYPE, 'https://didcomm.org/app-intent/1.0/pick-datetime-request', 'https://didcomm.org/app-intent/1.0/compose-email-request']) {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.checkMultipleDidcommPermissions !== 'function') {
-    throw new Error('checkMultipleDidcommPermissions RPC not available via messenger client.');
-  }
+  const msgr = await getReadyDecentClient();
   let result, error = null;
   try {
-    result = await msgr.checkMultipleDidcommPermissions(protocols, messageTypeUris);
+    result = await msgr.permissions.checkMultiple(protocols, messageTypeUris);
   } catch (err) {
     error = err;
   }
@@ -52,15 +46,12 @@ export async function requestDidcommPermissionsTest(requests = [
         { typeUri: 'https://didcomm.org/trust-ping/2.0/ping-response', description: 'DEV-Ping response' }],
     requireAllMessageTypes: false },
   { protocolUri: 'https://didcomm.org/basicmessage/2.0', protocolName: 'DEV-Basic Message', description: 'DEV-Send a basic message to a DID', messageTypes: [
-    { typeUri: 'https://didcomm.org/basicmessage/2.0/send-message', description: 'DEV-Send a basic message to a DID' }], requireAllMessageTypes: false },
+    { typeUri: 'https://didcomm.org/basicmessage/2.0/message', description: 'DEV-Send a basic message to a DID' }], requireAllMessageTypes: false },
   ]) {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.requestDidcommPermissions !== 'function') {
-    throw new Error('requestDidcommPermissions RPC not available via messenger client.');
-  }
+  const msgr = await getReadyDecentClient();
   let result, error = null;
   try {
-    result = await msgr.requestDidcommPermissions(requests);
+    result = await msgr.permissions.request(requests);
   } catch (err) {
     error = err;
   }
@@ -69,13 +60,10 @@ export async function requestDidcommPermissionsTest(requests = [
 }
 
 export async function listGrantedDidcommPermissionsTest(protocols = [SAMPLE_PROTOCOL, 'https://didcomm.org/trust-ping/2.0', 'https://didcomm.org/basicmessage/2.0']) {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.listGrantedDidcommPermissions !== 'function') {
-    throw new Error('listGrantedDidcommPermissions RPC not available via messenger client.');
-  }
+  const msgr = await getReadyDecentClient();
   let result, error = null;
   try {
-    result = await msgr.listGrantedDidcommPermissions(protocols);
+    result = await msgr.permissions.listGranted(protocols);
   } catch (err) {
     error = err;
   }
@@ -86,10 +74,7 @@ export async function listGrantedDidcommPermissionsTest(protocols = [SAMPLE_PROT
 
 // Request every known DIDComm permission from the protocol registry to verify UI rendering
 export async function requestAllDidcommPermissionsTest() {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.requestDidcommPermissions !== 'function') {
-    throw new Error('requestDidcommPermissions RPC not available via messenger client.');
-  }
+  const msgr = await getReadyDecentClient();
 
   const requests = [
     {
@@ -279,7 +264,7 @@ export async function requestAllDidcommPermissionsTest() {
 
   let result, error = null;
   try {
-    result = await msgr.requestDidcommPermissions(requests);
+    result = await msgr.permissions.request(requests);
   } catch (err) {
     error = err;
   }

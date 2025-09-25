@@ -1,10 +1,7 @@
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 export async function peerDidSameTest() {
-  const msgr = await connectMessenger();
-  if (!msgr || typeof msgr.getDID !== 'function') {
-    throw new Error('Service worker getDID() is not available.');
-  }
+  const msgr = await getReadyDecentClient();
 
   // First call
   const first = await msgr.getDID();

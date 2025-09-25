@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { connectMessenger } from './sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 const APP_INTENT_BASE = 'https://didcomm.org/app-intent/1.0';
 
@@ -71,7 +71,7 @@ export default function IntentLab() {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
   const [discovering, setDiscovering] = useState(false);
-  const [pendingUiRequest, setPendingUiRequest] = useState(null); // {correlationId, goalCode, params}
+  const [pendingUiRequest, setPendingUiRequest] = useState(null); // {correlationId, action, params}
 
   // Listen for SW-driven UI prompts for interactive provider behavior
   useEffect(() => {
@@ -80,11 +80,9 @@ export default function IntentLab() {
       if (data.kind !== 'intent-ui-request') return;
       setPendingUiRequest({ correlationId: data.correlationId, ...data.payload });
     }
-    // If controller isn't ready yet, hook when ready
     if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener('message', onMessage);
       navigator.serviceWorker.ready.then(reg => {
-        // Some browsers dispatch to reg.active
         reg?.active?.addEventListener?.('message', onMessage);
       }).catch(() => {});
     }
@@ -93,76 +91,39 @@ export default function IntentLab() {
     };
   }, []);
 
-  async function postToServiceWorker(message) {
-    try {
-      // Fast path: controller
-      const ctrl = navigator.serviceWorker?.controller;
-      if (ctrl) {
-        console.log('postToServiceWorker -> controller.postMessage');
-        ctrl.postMessage(message);
-        return true;
-      }
-
-      // Race helper with timeout so UI never hangs
-      const withTimeout = (p, ms = 700) => Promise.race([
-        p.catch(() => null),
-        new Promise(res => setTimeout(() => res(null), ms))
-      ]);
-
-      // Try to find any registration quickly
-      let reg = null;
-      reg = await withTimeout(navigator.serviceWorker.getRegistration('/')); // current scope
-      if (!reg) {
-        const regs = await withTimeout(navigator.serviceWorker.getRegistrations());
-        if (Array.isArray(regs)) {
-          reg = regs.find(r => (r?.active?.scriptURL?.includes('/worker/sw.js')) || r?.scope?.includes('/worker/')) || null;
-        }
-      }
-      if (reg?.active) {
-        console.log('postToServiceWorker -> reg.active.postMessage', reg.scope);
-        reg.active.postMessage(message);
-        return true;
-      }
-
-      // Best-effort registration; time-bounded
-      const newReg = await withTimeout(navigator.serviceWorker.register('/worker/sw.js', { type: 'module' }), 800);
-      if (newReg?.active) {
-        console.log('postToServiceWorker -> newReg.active.postMessage');
-        newReg.active.postMessage(message);
-        return true;
-      }
-    } catch (err) {
-      console.error('postToServiceWorker error', err);
-    }
-    console.warn('postToServiceWorker -> failed to find a target SW');
-    return false;
-  }
-
-  async function respondToIntentPrompt(payload) {
-    console.log('respondToIntentPrompt', payload);
-    if (!pendingUiRequest) return;
-    console.log('respondToIntentPrompt', 'pendingUiRequest found...');
-    const msg = { kind: 'intentUiResponse', data: { correlationId: pendingUiRequest.correlationId, payload } };
-    const ok = await postToServiceWorker(msg);
-    console.log('respondToIntentPrompt', 'ok', ok);
-    if (!ok) {
-      // Try a final broadcast as a fallback
-      try { navigator.serviceWorker?.controller?.postMessage?.(msg); } catch {}
-    }
-    setPendingUiRequest(null);
-    console.log('respondToIntentPrompt', 'pendingUiRequest set to null');
-  }
-
   useEffect(() => {
     (async () => {
-      const m = await connectMessenger();
-      setMsgr(m);
+      const app = await getReadyDecentClient();
+      setMsgr(app);
       try {
-        const info = await m.getDID();
+        const info = await app.getDID();
         if (info?.did) setMyDid(info.did);
       } catch {}
     })();
   }, []);
+
+  async function postToServiceWorker(message) {
+    try {
+      const ctrl = navigator.serviceWorker?.controller;
+      if (ctrl) { ctrl.postMessage(message); return true; }
+      const regs = await navigator.serviceWorker.getRegistrations();
+      const reg = (regs || []).find(r => r?.active);
+      if (reg?.active) { reg.active.postMessage(message); return true; }
+    } catch (err) {
+      console.error('postToServiceWorker error', err);
+    }
+    return false;
+  }
+
+  async function respondToIntentPrompt(payload) {
+    if (!pendingUiRequest) return;
+    const msg = { kind: 'intentUiResponse', data: { correlationId: pendingUiRequest.correlationId, payload } };
+    const ok = await postToServiceWorker(msg);
+    if (!ok) {
+      try { navigator.serviceWorker?.controller?.postMessage?.(msg); } catch {}
+    }
+    setPendingUiRequest(null);
+  }
 
   async function handleDiscover() {
     if (!msgr) return;
@@ -170,7 +131,8 @@ export default function IntentLab() {
     setProviders({});
     setSelectedProvider('');
     try {
-      const capsMap = await msgr.intentDiscover([selectedGoalCode], 1000);
+      const requestType = `${APP_INTENT_BASE}/${selectedGoalCode}-request`;
+      const capsMap = await msgr.protocols.intents.discover([requestType], 1000);
       setProviders(capsMap || {});
       const first = Object.keys(capsMap || {})[0] || '';
       setSelectedProvider(first);
@@ -253,7 +215,7 @@ export default function IntentLab() {
     try {
       const body = buildRequestBody();
       const requestType = `${APP_INTENT_BASE}/${selectedGoalCode}-request`;
-      const res = await msgr.intentRequest(
+      const res = await msgr.protocols.intents.request(
         selectedProvider,
         body,
         {

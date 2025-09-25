@@ -1,4 +1,4 @@
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 /**
  * Origin-DID Binding (ODB) Security Tests
@@ -44,14 +44,14 @@ function expectFailureLabel(routerResult) {
  * per the security model requirements.
  */
 export async function odbSecurityTests() {
-  const msgr = await connectMessenger();
+  const msgr = await getReadyDecentClient();
   const { did } = await msgr.getDID();
   const results = {};
 
   // 1) ODB Creation Validation - verify proper ODB structure in BTC
   try {
     const body = JSON.stringify({ test: 'odb_creation', timestamp: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -62,8 +62,9 @@ export async function odbSecurityTests() {
       const btcIdFormat = /^\d+$/.test(protectedHeader.btc_id); // Should be numeric string
       
       // Test sending to verify ODB validation occurs
-      const send = await msgr.sendRaw(did, packed.message);
-      const sendSucceeded = send?.ok === true;
+      const send = await msgr.send(did, packed.message);
+      const label = (typeof send === 'string') ? send : send?.result;
+      const sendSucceeded = label === 'success';
       
       results.odb_creation_validation = {
         pass: hasBtcId && btcIdFormat && sendSucceeded,
@@ -89,8 +90,8 @@ export async function odbSecurityTests() {
     const body1 = JSON.stringify({ test: 'ct_hash_validation', content: 'original', timestamp: Date.now() });
     const body2 = JSON.stringify({ test: 'ct_hash_validation', content: 'modified', timestamp: Date.now() + 1000 });
     
-    const packed1 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body1, [], '');
-    const packed2 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body2, [], '');
+    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body1, [], '');
+    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body2, [], '');
     
     if (packed1.success && packed2.success) {
       const parsed1 = JSON.parse(packed1.message);
@@ -105,10 +106,11 @@ export async function odbSecurityTests() {
       parsed2.protected = btoa(JSON.stringify(header2));
       const hybridMessage = JSON.stringify(parsed2);
       
-      const send = await msgr.sendRaw(did, hybridMessage);
-      const label = expectFailureLabel(send);
+      const send = await msgr.send(did, hybridMessage);
+      const label = (typeof send === 'string') ? send : send?.result;
+      const ok = label === 'success';
       
-      const pass = send?.ok === false && [
+      const pass = ok === false && [
         ROUTER.VALIDATION_FAILED,
         ROUTER.AUTHENTICATION_FAILED,
         ROUTER.INVALID_MESSAGE,
@@ -138,9 +140,9 @@ export async function odbSecurityTests() {
     const body = JSON.stringify({ test: 'nonce_replay', timestamp: Date.now() });
     
     // Pack the same content twice - should get different BTC IDs/nonces
-    const packed1 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     await new Promise(resolve => setTimeout(resolve, 10)); // Small delay to ensure different timestamps
-    const packed2 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed1.success && packed2.success) {
       const header1 = JSON.parse(atob(JSON.parse(packed1.message).protected));
@@ -149,10 +151,12 @@ export async function odbSecurityTests() {
       const differentBtcIds = header1.btc_id !== header2.btc_id;
       
       // Send both - both should succeed since they have different nonces/BTC IDs
-      const send1 = await msgr.sendRaw(did, packed1.message);
-      const send2 = await msgr.sendRaw(did, packed2.message);
+      const send1 = await msgr.send(did, packed1.message);
+      const send2 = await msgr.send(did, packed2.message);
+      const label1 = (typeof send1 === 'string') ? send1 : send1?.result;
+      const label2 = (typeof send2 === 'string') ? send2 : send2?.result;
       
-      const bothSucceeded = send1?.ok === true && send2?.ok === true;
+      const bothSucceeded = (label1 === 'success') && (label2 === 'success');
       
       results.nonce_replay_protection = {
         pass: differentBtcIds && bothSucceeded,
@@ -176,18 +180,19 @@ export async function odbSecurityTests() {
   // 4) Time Window Validation - test ODB expiration (if enforced)
   try {
     const body = JSON.stringify({ test: 'time_validation', timestamp: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success && packed.message) {
       // Immediately send - should succeed
-      const immediateSend = await msgr.sendRaw(did, packed.message);
+      const immediateSend = await msgr.send(did, packed.message);
       
       // Wait a bit and try again (testing if ODB expires)
       await new Promise(resolve => setTimeout(resolve, 1000));
-      const delayedSend = await msgr.sendRaw(did, packed.message);
+      const delayedSend = await msgr.send(did, packed.message);
       
-      const immediateSuccess = immediateSend?.ok === true;
-      const delayedLabel = expectFailureLabel(delayedSend);
+      const immediateLabel = (typeof immediateSend === 'string') ? immediateSend : immediateSend?.result;
+      const immediateSuccess = immediateLabel === 'success';
+      const delayedLabel = (typeof delayedSend === 'string') ? delayedSend : delayedSend?.result;
       
       // Delayed send might fail due to expiration or replay detection
       const expectedDelayedFailure = [
@@ -217,7 +222,7 @@ export async function odbSecurityTests() {
   // 5) Origin Verification - test that ODB binds to correct origin
   try {
     const body = JSON.stringify({ test: 'origin_verification', timestamp: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -227,8 +232,9 @@ export async function odbSecurityTests() {
       const hasBtcId = typeof protectedHeader.btc_id === 'string';
       
       // Send should succeed (origin matches)
-      const send = await msgr.sendRaw(did, packed.message);
-      const sendSucceeded = send?.ok === true;
+      const send = await msgr.send(did, packed.message);
+      const label = (typeof send === 'string') ? send : send?.result;
+      const sendSucceeded = label === 'success';
       
       results.origin_verification = {
         pass: hasBtcId && sendSucceeded,
@@ -256,15 +262,18 @@ export async function odbSecurityTests() {
     const body1 = JSON.stringify(bodyObj); // Normal formatting
     const body2 = JSON.stringify(bodyObj, null, 2); // Pretty printed - different bytes, same canonical form
     
-    const packed1 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body1, [], '');
-    const packed2 = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body2, [], '');
+    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body1, [], '');
+    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body2, [], '');
     
     if (packed1.success && packed2.success) {
       // Both should pack and send successfully since they have the same canonical content
-      const send1 = await msgr.sendRaw(did, packed1.message);
-      const send2 = await msgr.sendRaw(did, packed2.message);
+      const send1 = await msgr.send(did, packed1.message);
+      const send2 = await msgr.send(did, packed2.message);
       
-      const bothSucceeded = send1?.ok === true && send2?.ok === true;
+      const label1 = (typeof send1 === 'string') ? send1 : send1?.result;
+      const label2 = (typeof send2 === 'string') ? send2 : send2?.result;
+      
+      const bothSucceeded = label1 === 'success' && label2 === 'success';
       
       results.canonical_bytes_validation = {
         pass: bothSucceeded,

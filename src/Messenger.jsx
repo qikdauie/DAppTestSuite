@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { connectMessenger } from './sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 export default function Messenger() {
   const [msgr, setMsgr]   = useState(null);
@@ -14,18 +14,17 @@ export default function Messenger() {
     let cancelled = false;
 
     (async () => {
-      const m = await connectMessenger();          // start worker + helper
-      setMsgr(m);
+      const app = await getReadyDecentClient();
+      setMsgr(app);
 
-      const { did } = await m.getDID();
+      const { did } = await app.getDID();
       setMyDid(did);
-      await m.register(did);
 
       if (cancelled) return;
 
-      unsubscribe = m.onMessage(async raw => {
+      unsubscribe = app.onMessage(async raw => {
         console.log('raw', raw);
-        const up = await m.unpack(raw);
+        const up = await app.unpack(raw);
         if (!up.success) return;
         const body = JSON.parse(up.message);
         push('in', body.body?.text || '[no text]', body.from);
@@ -51,7 +50,8 @@ export default function Messenger() {
       dest,
       'https://didcomm.org/basicmessage/2.0/message',
       JSON.stringify(body),
-      true, true);
+      [],
+      "");
 
     if (packed.success && await msgr.send(dest, packed.message)) {
       console.log('sent', dest, packed.message);

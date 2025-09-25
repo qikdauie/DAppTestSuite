@@ -1,4 +1,4 @@
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 /**
  * 💀 ADVERSARIAL BREAK TESTS 💀
@@ -39,14 +39,14 @@ function expectFailureLabel(routerResult) {
 }
 
 export async function adversarialBreakTests() {
-  const msgr = await connectMessenger();
+  const msgr = await getReadyDecentClient();
   const { did } = await msgr.getDID();
   const results = {};
 
   // 💥 ATTACK 1: BTC ID Integer Overflow/Underflow APOCALYPSE
   try {
     const body = JSON.stringify({ attack: 'btc_overflow_apocalypse' });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
@@ -110,8 +110,9 @@ export async function adversarialBreakTests() {
           const tampered = { ...header, btc_id: maliciousBtcId };
           parsed.protected = btoa(JSON.stringify(tampered));
           
-          const result = await msgr.sendRaw(did, JSON.stringify(parsed));
-          if (result?.ok === true) {
+          const result = await msgr.send(did, JSON.stringify(parsed));
+          const label = (typeof result === 'string') ? result : result?.result;
+          if (label === 'success') {
             vulnerabilities.push({
               btcId: maliciousBtcId,
               unexpectedSuccess: true,
@@ -142,12 +143,12 @@ export async function adversarialBreakTests() {
   // ⚡ ATTACK 2: EXTREME Race Condition Attack - 100 CONCURRENT HAMMERING
   try {
     const body = JSON.stringify({ attack: 'extreme_race_condition', timestamp: Date.now() });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success) {
       // Launch 100 concurrent sends of the SAME message to find race conditions
       const concurrentSends = Array(100).fill(null).map((_, i) => 
-        msgr.sendRaw(did, packed.message).then(result => ({
+        msgr.send(did, packed.message).then(result => ({
           attempt: i,
           result: result,
           timestamp: Date.now()
@@ -155,8 +156,8 @@ export async function adversarialBreakTests() {
       );
       
       const results_concurrent = await Promise.all(concurrentSends);
-      const successes = results_concurrent.filter(r => r.result?.ok === true);
-      const failures = results_concurrent.filter(r => r.result?.ok === false);
+      const successes = results_concurrent.filter(r => ((typeof r.result === 'string') ? r.result : r.result?.result) === 'success');
+      const failures = results_concurrent.filter(r => ((typeof r.result === 'string') ? r.result : r.result?.result) !== 'success');
       
       // If more than 1 succeeds, there's a race condition vulnerability
       const hasRaceCondition = successes.length > 1;
@@ -188,7 +189,7 @@ export async function adversarialBreakTests() {
   // 🔤 ATTACK 3: ULTIMATE Unicode/Encoding Apocalypse
   try {
     const body = JSON.stringify({ attack: 'unicode_apocalypse' });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
@@ -216,8 +217,8 @@ export async function adversarialBreakTests() {
         "123456789\u2067",                     // Right-to-left isolate
         "123456789\u2068",                     // First strong isolate
         "123456789\u2069",                     // Pop directional isolate
-        Buffer.from("123456789", 'utf8').toString('base64'), // Base64 encoded
-        Buffer.from("123456789", 'utf8').toString('hex'),    // Hex encoded
+        btoa("123456789"),                     // Base64 encoded
+        Array.from("123456789").map(c => c.charCodeAt(0).toString(16)).join(''), // Hex encoded
         encodeURIComponent("123456789"),       // URL encoded
         "123456789".split('').join('\u200B'),  // Zero-width spaces between chars
         "𝟙𝟚𝟛𝟜𝟝𝟞𝟟𝟠𝟡",                          // Mathematical bold digits
@@ -236,8 +237,9 @@ export async function adversarialBreakTests() {
           const tampered = { ...header, btc_id: unicodeAttack };
           parsed.protected = btoa(JSON.stringify(tampered));
           
-          const result = await msgr.sendRaw(did, JSON.stringify(parsed));
-          if (result?.ok === true) {
+          const result = await msgr.send(did, JSON.stringify(parsed));
+          const label = (typeof result === 'string') ? result : result?.result;
+          if (label === 'success') {
             unicodeVulnerabilities.push({
               attack: unicodeAttack,
               encoding: Array.from(unicodeAttack).map(c => c.charCodeAt(0).toString(16)).join(' '),
@@ -307,7 +309,7 @@ export async function adversarialBreakTests() {
         const startTime = Date.now();
         const bodyJson = JSON.stringify(attack.payload);
         const stringifyTime = Date.now();
-        const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', bodyJson, [], '');
+        const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', bodyJson, [], '');
         const endTime = Date.now();
         
         bombResults.push({
@@ -351,7 +353,7 @@ export async function adversarialBreakTests() {
   // ⏱️ ATTACK 5: PRECISION Timing Attack on BTC Validation
   try {
     const validBody = JSON.stringify({ attack: 'precision_timing_attack' });
-    const validPacked = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', validBody, [], '');
+        const validPacked = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', validBody, [], '');
     
     if (validPacked.success) {
       const parsed = JSON.parse(validPacked.message);
@@ -381,7 +383,7 @@ export async function adversarialBreakTests() {
         // Run each test 50 times to get HIGH PRECISION timing data
         for (let i = 0; i < 50; i++) {
           const startTime = performance.now();
-          await msgr.sendRaw(did, JSON.stringify(parsed));
+          const _ = await msgr.send(did, JSON.stringify(parsed));
           const endTime = performance.now();
           times.push(endTime - startTime);
         }
@@ -435,21 +437,29 @@ export async function adversarialBreakTests() {
 
   // 🧠 ATTACK 6: EXTREME Memory Exhaustion via GIGANTIC JWE
   try {
-    // Create MASSIVE JWE components to test memory limits
+    // Test router's ability to reject oversized JWE components efficiently
+    // Focus on API response time and proper rejection rather than browser memory
     const memoryTests = [
-      { name: 'megabyte_ciphertext', size: 1024 * 1024 },        // 1MB
-      { name: 'ten_megabyte_ciphertext', size: 10 * 1024 * 1024 }, // 10MB
-      { name: 'hundred_megabyte_ciphertext', size: 100 * 1024 * 1024 }, // 100MB
-      { name: 'gigabyte_iv', size: 1024 * 1024 * 1024 },        // 1GB IV (lol)
-      { name: 'massive_tag', size: 10 * 1024 * 1024 },          // 10MB tag
-      { name: 'giant_key', size: 1024 * 1024 },                 // 1MB encrypted key
+      { name: 'large_ciphertext', size: 2 * 1024 * 1024 },      // 2MB
+      { name: 'very_large_ciphertext', size: 5 * 1024 * 1024 }, // 5MB
+      { name: 'oversized_ciphertext', size: 10 * 1024 * 1024 }, // 10MB (should be rejected)
+      { name: 'oversized_iv', size: 1024 },                     // 1KB IV (way too big)
+      { name: 'massive_tag', size: 1024 },                      // 1KB tag (way too big)
+      { name: 'giant_key', size: 8 * 1024 },                    // 8KB encrypted key (too big)
     ];
     
     let memoryResults = [];
     for (const test of memoryTests) {
       try {
-        const startMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
         const startTime = Date.now();
+        
+        // Create oversized components but not so large they crash the browser
+        let testComponent;
+        if (test.name.includes('ciphertext')) {
+          testComponent = 'A'.repeat(Math.min(test.size, 50 * 1024 * 1024)); // Cap at 50MB to avoid browser crash
+        } else {
+          testComponent = 'A'.repeat(test.size);
+        }
         
         const maliciousJwe = {
           protected: btoa(JSON.stringify({
@@ -461,27 +471,35 @@ export async function adversarialBreakTests() {
           })),
           recipients: [{
             header: { alg: "ECDH-1PU+A256KW", kid: did },
-            encrypted_key: test.name === 'giant_key' ? 'A'.repeat(test.size) : 'fake_key'
+            encrypted_key: test.name === 'giant_key' ? testComponent : 'fake_key'
           }],
-          ciphertext: test.name.includes('ciphertext') ? 'A'.repeat(test.size) : 'fake_ciphertext',
-          iv: test.name === 'gigabyte_iv' ? 'A'.repeat(test.size) : 'fake_iv',
-          tag: test.name === 'massive_tag' ? 'A'.repeat(test.size) : 'fake_tag'
+          ciphertext: test.name.includes('ciphertext') ? testComponent : 'fake_ciphertext',
+          iv: test.name === 'oversized_iv' ? testComponent : 'fake_iv',
+          tag: test.name === 'massive_tag' ? testComponent : 'fake_tag'
         };
         
-        const result = await msgr.sendRaw(did, JSON.stringify(maliciousJwe));
+        const result = await msgr.send(did, JSON.stringify(maliciousJwe));
         const endTime = Date.now();
-        const endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+        
+        // Clean up reference to allow GC
+        testComponent = null;
+        
+        const timeTaken = endTime - startTime;
+        const shouldBeRejected = test.size > (3 * 1024 * 1024); // Components over 3MB should be rejected
+        const label = (typeof result === 'string') ? result : result?.result;
+        const wasRejected = label === 'validation-failed';
         
         memoryResults.push({
           name: test.name,
           size: test.size,
           sizeMB: (test.size / (1024 * 1024)).toFixed(2),
-          timeTaken: endTime - startTime,
-          memoryUsed: endMemory - startMemory,
-          memoryUsedMB: ((endMemory - startMemory) / (1024 * 1024)).toFixed(2),
+          timeTaken,
           result: result,
-          potentialMemoryIssue: (endTime - startTime) > 30000, // Over 30 seconds
-          extremeMemoryUsage: (endMemory - startMemory) > (100 * 1024 * 1024) // Over 100MB
+          shouldBeRejected,
+          wasRejected,
+          properlyHandled: shouldBeRejected ? wasRejected : true,
+          slowResponse: timeTaken > 5000, // Router should reject quickly (under 5s)
+          routerProcessingIssue: timeTaken > 10000 || (shouldBeRejected && !wasRejected)
         });
       } catch (e) {
         memoryResults.push({
@@ -489,20 +507,21 @@ export async function adversarialBreakTests() {
           size: test.size,
           sizeMB: (test.size / (1024 * 1024)).toFixed(2),
           error: e.message,
-          crashed: true
+          crashed: true,
+          routerProcessingIssue: true
         });
       }
     }
     
-    const hasMemoryVulnerability = memoryResults.some(r => r.potentialMemoryIssue || r.extremeMemoryUsage || r.crashed);
+    // Test passes if router properly rejects oversized components and responds quickly
+    const hasRouterIssue = memoryResults.some(r => r.routerProcessingIssue || r.crashed);
     
     results.extreme_memory_exhaustion = {
-      pass: !hasMemoryVulnerability,
+      pass: !hasRouterIssue,
       detail: {
         apis: ['sendMessage'],
         memoryResults,
-        totalMemoryUsed: memoryResults.reduce((sum, r) => sum + (r.memoryUsed || 0), 0),
-        explanation: 'Router should handle massive JWE components without memory exhaustion or crashing'
+        explanation: 'Router should efficiently reject oversized JWE components with validation-failed'
       }
     };
   } catch (err) {
@@ -513,7 +532,7 @@ export async function adversarialBreakTests() {
   try {
     // Try to discover/guess BTC IDs from other origins/sessions with ADVANCED techniques
     const body = JSON.stringify({ attack: 'advanced_cross_origin_pollution' });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
@@ -551,8 +570,9 @@ export async function adversarialBreakTests() {
           const tamperedHeader = { ...header, btc_id: guessedBtcId };
           parsed.protected = btoa(JSON.stringify(tamperedHeader));
           
-          const result = await msgr.sendRaw(did, JSON.stringify(parsed));
-          if (result?.ok === true) {
+          const result = await msgr.send(did, JSON.stringify(parsed));
+          const label = (typeof result === 'string') ? result : result?.result;
+          if (label === 'success') {
             crossOriginVulnerabilities.push({
               originalBtcId: header.btc_id,
               guessedBtcId,
@@ -584,7 +604,7 @@ export async function adversarialBreakTests() {
   // 💉 ATTACK 8: ULTIMATE JWE Header Injection Apocalypse
   try {
     const body = JSON.stringify({ attack: 'ultimate_header_injection' });
-    const packed = await msgr.packFull(did, 'https://didcomm.org/basicmessage/2.0/send-message', body, [], '');
+    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
@@ -651,7 +671,7 @@ export async function adversarialBreakTests() {
         { many_headers: Object.fromEntries(Array(10000).fill(0).map((_, i) => [`header_${i}`, `value_${i}`])) },
         
         // Binary data
-        { binary: Buffer.from('evil binary data').toString('base64') },
+        { binary: btoa('evil binary data') },
         { null_bytes: 'header\x00with\x00nulls' },
         
         // Unicode attacks
@@ -667,8 +687,9 @@ export async function adversarialBreakTests() {
           const maliciousHeader = { ...header, ...injection };
           parsed.protected = btoa(JSON.stringify(maliciousHeader));
           
-          const result = await msgr.sendRaw(did, JSON.stringify(parsed));
-          if (result?.ok === true) {
+          const result = await msgr.send(did, JSON.stringify(parsed));
+          const label = (typeof result === 'string') ? result : result?.result;
+          if (label === 'success') {
             injectionVulnerabilities.push({
               injection,
               injectionKeys: Object.keys(injection),

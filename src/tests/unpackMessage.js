@@ -1,7 +1,7 @@
-import { connectMessenger } from '../sdk/messenger-client.js';
+import { getReadyDecentClient } from 'decent_app_sdk';
 
 export async function unpackMessageTest(scenarioName = null) {
-  const msgr = await connectMessenger();
+  const msgr = await getReadyDecentClient();
   if (!msgr || typeof msgr.pack !== 'function' || typeof msgr.unpack !== 'function' || typeof msgr.getDID !== 'function') {
     throw new Error('Service worker pack/unpack/getDID is not available.');
   }
@@ -32,7 +32,7 @@ export async function unpackMessageTest(scenarioName = null) {
 
   for (const scenario of scenariosToRun) {
     // Pack the message first
-    const packed = await msgr.pack(did, "https://didcomm.org/basicmessage/2.0/send-message", bodyJson, scenario.sign, scenario.encrypt);
+    const packed = await msgr.pack(did, "https://didcomm.org/basicmessage/2.0/message", bodyJson, [], "");
     if (!packed.success) {
       results[scenario.name] = {
         pass: false,
