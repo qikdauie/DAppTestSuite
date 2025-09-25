@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getReadyDecentClient } from 'decent_app_sdk';
+import { getReadyDecentClient} from 'decent_app_sdk';
 
 export default function Messenger() {
   const [msgr, setMsgr]   = useState(null);
@@ -19,6 +19,12 @@ export default function Messenger() {
 
       const { did } = await app.getDID();
       setMyDid(did);
+
+      try {
+        await app.protocols.refresh();
+      } catch (e) {
+        console.warn('protocols.refresh failed', e);
+      }
 
       if (cancelled) return;
 
@@ -45,17 +51,27 @@ export default function Messenger() {
   async function send() {
     if (!msgr || !dest || !text) return;
 
-    const body   = { text };
-    const packed = await msgr.pack(
-      dest,
-      'https://didcomm.org/basicmessage/2.0/message',
-      JSON.stringify(body),
-      [],
-      "");
+    try {
+      const body   = { text };
+      const packed = await msgr.pack(
+        dest,
+        'https://didcomm.org/basicmessage/2.0/message',
+        JSON.stringify(body),
+        [],
+        "");
 
-    if (packed.success && await msgr.send(dest, packed.message)) {
-      console.log('sent', dest, packed.message);
-      push('out', text, dest);
+      if (!packed?.success) {
+        console.error('pack failed', packed);
+        return;
+      }
+
+      const ok = await msgr.sendOk(dest, packed.message);
+      if (ok) {
+        console.log('sent', dest, packed.message);
+        push('out', text, dest);
+      }
+    } catch (err) {
+      console.error('send error', err);
     }
 
     setText('');

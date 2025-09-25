@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { getReadyDecentClient} from 'decent_app_sdk';
 import {
   securityAttackTests,
   attackPlaintextUnicast,
@@ -57,6 +58,15 @@ function Pre({ data }) {
 export default function SecurityLab() {
   const [allRes, setAllRes] = useState({});
   const [caseRes, setCaseRes] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const sdk = await getReadyDecentClient();
+        try { await sdk.protocols.refresh(); } catch {}
+      } catch {}
+    })();
+  }, []);
 
   async function runAllCategory(category, testFn) {
     setAllRes(prev => ({ ...prev, [category]: { status: 'running' } }));

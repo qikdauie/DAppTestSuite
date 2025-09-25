@@ -1,4 +1,4 @@
-import { getReadyDecentClient } from 'decent_app_sdk';
+import { getReadyDecentClient} from 'decent_app_sdk';
 
 /**
  * Basic functional smoke-test for discoverFeatures()
@@ -8,6 +8,7 @@ import { getReadyDecentClient } from 'decent_app_sdk';
  */
 export async function discoverFeaturesTest(matchers = ['https://*']) {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
 
   let featureMap;
   let error = null;
@@ -35,6 +36,7 @@ export async function discoverFeaturesTest(matchers = ['https://*']) {
  */
 export async function discoverDivergentFeaturesTest() {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
 
   const matchers = [
     'https://didcomm.org/issue-credential/2.0',
@@ -84,6 +86,7 @@ export async function discoverDivergentFeaturesTest() {
  */
 export async function discoverFeaturesObjectQueryTest() {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
 
   const queries = [
     { 'feature-type': 'protocol', match: 'https://didcomm.org/*' }

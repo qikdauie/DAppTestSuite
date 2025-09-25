@@ -1,4 +1,4 @@
-import { getReadyDecentClient } from 'decent_app_sdk';
+import { getReadyDecentClient} from 'decent_app_sdk';
 
 function ok(v) { return v === true || v === 'success' || v?.ok === true; }
 

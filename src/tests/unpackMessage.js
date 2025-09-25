@@ -1,7 +1,8 @@
-import { getReadyDecentClient } from 'decent_app_sdk';
+import { getReadyDecentClient} from 'decent_app_sdk';
 
 export async function unpackMessageTest(scenarioName = null) {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
   if (!msgr || typeof msgr.pack !== 'function' || typeof msgr.unpack !== 'function' || typeof msgr.getDID !== 'function') {
     throw new Error('Service worker pack/unpack/getDID is not available.');
   }

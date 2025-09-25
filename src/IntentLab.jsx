@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getReadyDecentClient } from 'decent_app_sdk';
+import { getReadyDecentClient} from 'decent_app_sdk';
 
 const APP_INTENT_BASE = 'https://didcomm.org/app-intent/1.0';
 
@@ -99,6 +99,9 @@ export default function IntentLab() {
         const info = await app.getDID();
         if (info?.did) setMyDid(info.did);
       } catch {}
+      try {
+        await app.protocols.refresh();
+      } catch {}
     })();
   }, []);
 
@@ -132,9 +135,10 @@ export default function IntentLab() {
     setSelectedProvider('');
     try {
       const requestType = `${APP_INTENT_BASE}/${selectedGoalCode}-request`;
-      const capsMap = await msgr.protocols.intents.discover([requestType], 1000);
-      setProviders(capsMap || {});
-      const first = Object.keys(capsMap || {})[0] || '';
+      const res = await msgr.protocols.intents.discover([requestType], 1000);
+      const capsMap = (res && res.result) || {};
+      setProviders(capsMap);
+      const first = Object.keys(capsMap)[0] || '';
       setSelectedProvider(first);
     } catch (err) {
       console.error(err);

@@ -1,5 +1,5 @@
 // DIDComm Permissions API tests
-import { getReadyDecentClient } from 'decent_app_sdk';
+import { getReadyDecentClient} from 'decent_app_sdk';
 
 const SAMPLE_PROTOCOL = 'https://didcomm.org/basicmessage/2.0';
 const SAMPLE_PROTOCOL_NAME = 'DEV-Basic Message';
@@ -9,6 +9,7 @@ const SAMPLE_MESSAGE_TYPE_DESCRIPTION = 'DEV-Send a basic message to a DID';
 
 export async function checkDidcommPermissionTest(protocol = SAMPLE_PROTOCOL, messageTypeUri = SAMPLE_MESSAGE_TYPE) {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
   let result, error = null;
   try {
     result = await msgr.permissions.check(protocol, messageTypeUri);
@@ -21,6 +22,7 @@ export async function checkDidcommPermissionTest(protocol = SAMPLE_PROTOCOL, mes
 
 export async function checkMultipleDidcommPermissionsTest(protocols = ['https://didcomm.org/app-intent/1.0'], messageTypeUris = [SAMPLE_MESSAGE_TYPE, 'https://didcomm.org/app-intent/1.0/pick-datetime-request', 'https://didcomm.org/app-intent/1.0/compose-email-request']) {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
   let result, error = null;
   try {
     result = await msgr.permissions.checkMultiple(protocols, messageTypeUris);
@@ -49,6 +51,7 @@ export async function requestDidcommPermissionsTest(requests = [
     { typeUri: 'https://didcomm.org/basicmessage/2.0/message', description: 'DEV-Send a basic message to a DID' }], requireAllMessageTypes: false },
   ]) {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
   let result, error = null;
   try {
     result = await msgr.permissions.request(requests);
@@ -61,6 +64,7 @@ export async function requestDidcommPermissionsTest(requests = [
 
 export async function listGrantedDidcommPermissionsTest(protocols = [SAMPLE_PROTOCOL, 'https://didcomm.org/trust-ping/2.0', 'https://didcomm.org/basicmessage/2.0']) {
   const msgr = await getReadyDecentClient();
+  try { await msgr.protocols.refresh(); } catch {}
   let result, error = null;
   try {
     result = await msgr.permissions.listGranted(protocols);

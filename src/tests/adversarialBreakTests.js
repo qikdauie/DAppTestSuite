@@ -1,4 +1,4 @@
-import { getReadyDecentClient } from 'decent_app_sdk';
+import { getReadyDecentClient} from 'decent_app_sdk';
 
 /**
  * 💀 ADVERSARIAL BREAK TESTS 💀
