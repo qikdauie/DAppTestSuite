@@ -10,7 +10,7 @@
     "start": "vite preview --port 8080 --host"
   },
   "dependencies": {
-    "decent_app_sdk": "file:./decent_app_sdk",
+    "decent_app_sdk": "file:./submodules/decent_app_sdk",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
