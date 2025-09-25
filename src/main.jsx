@@ -6,7 +6,9 @@ import { getDecentClient } from 'decent_app_sdk';
 // SW is registered by the DecentClient singleton on first use
 // Proactively instantiate the singleton at startup to register the SW immediately
 // Use an absolute path so Vite does not inline it as a data URL
-getDecentClient({ serviceWorkerUrl: '/public/worker/sw.js' });
+const isDev = import.meta && import.meta.env && import.meta.env.DEV;
+const swUrl = isDev ? '/src/sw.js' : '/sw.js';
+getDecentClient({ serviceWorkerUrl: swUrl });
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

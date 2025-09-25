@@ -1,8 +1,14 @@
-name: sample-nodejs
-services:
-- environment_slug: node-js
-  github:
-    branch: main
-    deploy_on_push: true
-    repo: digitalocean/sample-nodejs
-  name: sample-nodejs
+name: peer-did-js-test-app
+
+static_sites:
+  - name: web
+    github:
+      repo: qikdauie/DAppTestSuite
+      branch: main
+      deploy_on_push: true
+    source_dir: .
+    environment_slug: node-js
+    build_command: npm ci && npm run build
+    output_dir: dist
+    index_document: index.html
+    error_document: index.html

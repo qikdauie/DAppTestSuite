@@ -27,4 +27,19 @@ export default defineConfig({
     host: true,
     port: 8080,
   },
+  build: {
+    rollupOptions: {
+      input: {
+        main: pathResolve(__dirname, 'index.html'),
+        sw: pathResolve(__dirname, 'src/sw.js'),
+      },
+      output: {
+        entryFileNames: (chunkInfo) => {
+          return chunkInfo.name === 'sw' ? 'sw.js' : 'assets/[name].[hash].js';
+        },
+        chunkFileNames: 'assets/[name].[hash].js',
+        assetFileNames: 'assets/[name].[hash].[ext]'
+      }
+    }
+  }
 }); 
