@@ -10,6 +10,12 @@ import {
 } from './tests/unpackMessage';
 import { discoverFeaturesTest } from './tests/discoverFeatures';
 import {
+  attachmentsAllTest,
+  attachmentsInlineTest,
+  attachmentsExternalTest,
+  attachmentsMultipleTest
+} from './tests/attachments';
+import {
   checkDidcommPermissionTest,
   checkMultipleDidcommPermissionsTest,
   requestDidcommPermissionsTest,
@@ -42,6 +48,16 @@ const tests = [
       { id: 'unpackSigned', label: 'Signed', execute: unpackMessageSignedTest },
       { id: 'unpackEncrypted', label: 'Encrypted', execute: unpackMessageEncryptedTest },
       { id: 'unpackSignedEncrypted', label: 'Signed+Encrypted', execute: unpackMessageSignedEncryptedTest },
+    ]
+  },
+  {
+    id: 'attachments',
+    label: 'attachments: pack/unpack with attachments',
+    execute: attachmentsAllTest,
+    scenarios: [
+      { id: 'attInline', label: 'Inline (base64)', execute: attachmentsInlineTest },
+      { id: 'attExternal', label: 'External (URL)', execute: attachmentsExternalTest },
+      { id: 'attMultiple', label: 'Multiple', execute: attachmentsMultipleTest },
     ]
   },
   {
