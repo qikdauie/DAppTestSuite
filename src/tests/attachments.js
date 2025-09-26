@@ -1,4 +1,6 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { MessageTypes } from 'decent_app_sdk/constants';
+import { normalizeAttachments } from '../../submodules/decent_app_sdk/src/utils/attachments.js';
 
 function makeInlineTextAttachment(id, text, filename = 'note.txt', description = 'Inline text attachment') {
   // Use base64 to keep transport deterministic across environments
@@ -9,8 +11,6 @@ function makeInlineTextAttachment(id, text, filename = 'note.txt', description =
     filename: filename ?? '',
     description: description ?? '',
     data: base64 ?? '',
-    externalUrl: '',
-    isExternal: false,
   };
 }
 
@@ -22,7 +22,6 @@ function makeExternalAttachment(id, url, mimeType = 'application/octet-stream', 
     description: description ?? '',
     data: '',
     externalUrl: url ?? '',
-    isExternal: true,
   };
 }
 
@@ -30,7 +29,7 @@ async function packUnpack(msgr, did, bodyObj, attachments) {
   const bodyJson = JSON.stringify(bodyObj);
   const packed = await msgr.pack(
     did,
-    'https://didcomm.org/basicmessage/2.0/message',
+    MessageTypes.BASIC_MESSAGE.MESSAGE,
     bodyJson,
     attachments,
     ''
@@ -44,6 +43,9 @@ async function packUnpack(msgr, did, bodyObj, attachments) {
   }
   let envelope;
   try { envelope = JSON.parse(unpacked.message); } catch (e) { envelope = null; }
+  if (envelope) {
+    envelope.attachments = normalizeAttachments(envelope.attachments || []);
+  }
   return { pass: !!envelope, packed, unpacked, envelope };
 }
 
@@ -64,9 +66,7 @@ export async function attachmentsInlineTest() {
   const sameMime = first?.mimeType === att.mimeType;
   const sameFilename = first?.filename === att.filename;
   const sameData = typeof first?.data === 'string' && first.data === att.data;
-  const markedInline = first?.isExternal === false;
-
-  const pass = sameId && sameMime && sameFilename && sameData && markedInline;
+  const pass = sameId && sameMime && sameFilename && sameData;
   return {
     pass,
     expected: att,
@@ -92,9 +92,7 @@ export async function attachmentsExternalTest() {
   const sameMime = first?.mimeType === att.mimeType;
   const sameFilename = first?.filename === att.filename;
   const sameUrl = first?.externalUrl === att.externalUrl;
-  const markedExternal = first?.isExternal === true;
-
-  const pass = sameId && sameMime && sameFilename && sameUrl && markedExternal;
+  const pass = sameId && sameMime && sameFilename && sameUrl;
   return {
     pass,
     expected: att,

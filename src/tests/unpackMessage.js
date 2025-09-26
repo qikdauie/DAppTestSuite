@@ -1,4 +1,5 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { MessageTypes } from 'decent_app_sdk/constants';
 
 export async function unpackMessageTest(scenarioName = null) {
   const msgr = await getReadyDecentClient();
@@ -33,7 +34,7 @@ export async function unpackMessageTest(scenarioName = null) {
 
   for (const scenario of scenariosToRun) {
     // Pack the message first
-    const packed = await msgr.pack(did, "https://didcomm.org/basicmessage/2.0/message", bodyJson, [], "");
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, bodyJson, [], "");
     if (!packed.success) {
       results[scenario.name] = {
         pass: false,

@@ -1,4 +1,5 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { PIURI } from 'decent_app_sdk/constants';
 
 /**
  * Basic functional smoke-test for discoverFeatures()
@@ -39,9 +40,9 @@ export async function discoverDivergentFeaturesTest() {
   try { await msgr.protocols.refresh(); } catch {}
 
   const matchers = [
-    'https://didcomm.org/issue-credential/2.0',
-    'https://didcomm.org/present-proof/2.0',
-    'https://didcomm.org/basicmessage/2.0',
+    PIURI.ISSUE_CREDENTIAL_V2,
+    PIURI.PRESENT_PROOF_V2,
+    PIURI.BASIC_MESSAGE_V1,
   ];
 
   const caps = await msgr.protocols.discover(matchers, 800);
@@ -51,9 +52,9 @@ export async function discoverDivergentFeaturesTest() {
     peers.map(p => [p, (caps[p] || []).map(f => f.id)])
   );
 
-  const hasIssuer   = peers.some(p => featuresByPeer[p].includes('https://didcomm.org/issue-credential/2.0'));
-  const hasVerifier = peers.some(p => featuresByPeer[p].includes('https://didcomm.org/present-proof/2.0'));
-  const hasBasic    = peers.some(p => featuresByPeer[p].includes('https://didcomm.org/basicmessage/2.0'));
+  const hasIssuer   = peers.some(p => featuresByPeer[p].includes(PIURI.ISSUE_CREDENTIAL_V2));
+  const hasVerifier = peers.some(p => featuresByPeer[p].includes(PIURI.PRESENT_PROOF_V2));
+  const hasBasic    = peers.some(p => featuresByPeer[p].includes(PIURI.BASIC_MESSAGE_V1));
 
   // Current instance does not disclose to itself; expect only the OTHER side's caps
   const port = (typeof window !== 'undefined' && window.location && window.location.port) ? window.location.port : '';
@@ -61,14 +62,14 @@ export async function discoverDivergentFeaturesTest() {
   let expected;
   if (port === '3000') {
     pass = hasVerifier && hasBasic; // expect 3001's present-proof + basicmessage
-    expected = ['https://didcomm.org/present-proof/2.0', 'https://didcomm.org/basicmessage/2.0'];
+    expected = [PIURI.PRESENT_PROOF_V2, PIURI.BASIC_MESSAGE_V1];
   } else if (port === '3001') {
     pass = hasIssuer && hasBasic;   // expect 3000's issue-credential + basicmessage
-    expected = ['https://didcomm.org/issue-credential/2.0', 'https://didcomm.org/basicmessage/2.0'];
+    expected = [PIURI.ISSUE_CREDENTIAL_V2, PIURI.BASIC_MESSAGE_V1];
   } else {
     // Fallback: at least one of issuer/verifier plus basicmessage
     pass = (hasIssuer || hasVerifier) && hasBasic;
-    expected = ['(issuer OR verifier)', 'https://didcomm.org/basicmessage/2.0'];
+    expected = ['(issuer OR verifier)', PIURI.BASIC_MESSAGE_V1];
   }
 
   return {

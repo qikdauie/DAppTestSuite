@@ -1,4 +1,5 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { RouterResults, MessageTypes } from 'decent_app_sdk/constants';
 
 /**
  * Router Verification Pipeline Tests
@@ -17,25 +18,10 @@ import { getReadyDecentClient} from 'decent_app_sdk';
  * 9. If all pass, enqueue to delivery; else drop
  */
 
-const ROUTER = {
-  SUCCESS: 'success',
-  ABORTED: 'aborted',
-  ACCESS_DENIED: 'access-denied',
-  INVALID_ADDRESS: 'invalid-address',
-  ADDRESS_IN_USE: 'address-in-use',
-  INVALID_MESSAGE: 'invalid-message',
-  NO_ROUTE: 'no-route',
-  VALIDATION_FAILED: 'validation-failed',
-  AUTHENTICATION_FAILED: 'authentication-failed',
-  REQUEST_EXPIRED: 'request-expired',
-  RATE_LIMIT_EXCEEDED: 'rate-limit-exceeded',
-  UNKNOWN_ERROR: 'unknown-error',
-};
-
 function expectFailureLabel(routerResult) {
   if (typeof routerResult === 'string') return routerResult;
   if (routerResult && typeof routerResult.result === 'string') return routerResult.result;
-  return ROUTER.UNKNOWN_ERROR;
+  return RouterResults.UNKNOWN_ERROR;
 }
 
 /**
@@ -59,8 +45,8 @@ export async function routerPipelineTests() {
     const ok = label === 'success';
     
     const pass = ok === false && [
-      ROUTER.INVALID_MESSAGE,
-      ROUTER.VALIDATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
+      RouterResults.VALIDATION_FAILED,
     ].includes(label);
     
     results.jose_parsing_validation = {
@@ -93,8 +79,8 @@ export async function routerPipelineTests() {
     const ok = label === 'success';
     
     const pass = ok === false && [
-      ROUTER.INVALID_MESSAGE,
-      ROUTER.VALIDATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
+      RouterResults.VALIDATION_FAILED,
     ].includes(label);
     
     results.jose_consistency_validation = {
@@ -135,9 +121,9 @@ export async function routerPipelineTests() {
     const ok = label === 'success';
     
     const pass = ok === false && [
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.AUTHENTICATION_FAILED,
-      ROUTER.INVALID_MESSAGE,
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.AUTHENTICATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
     ].includes(label);
     
     results.cipher_policy_validation = {
@@ -178,8 +164,8 @@ export async function routerPipelineTests() {
     const ok = label === 'success';
     
     const pass = ok === false && [
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.INVALID_MESSAGE,
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
     ].includes(label);
     
     results.required_fields_validation = {
@@ -201,7 +187,7 @@ export async function routerPipelineTests() {
     const plaintextJwm = JSON.stringify({
       typ: "application/didcomm-plain+json",
       id: "test-plaintext",
-      type: "https://didcomm.org/basicmessage/2.0/message",
+      type: MessageTypes.BASIC_MESSAGE.MESSAGE,
       from: did,
       to: [did],
       body: { test: "plaintext_not_allowed" }
@@ -212,9 +198,9 @@ export async function routerPipelineTests() {
     const ok = label === 'success';
     
     const pass = ok === false && [
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.ACCESS_DENIED,
-      ROUTER.INVALID_MESSAGE,
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.ACCESS_DENIED,
+      RouterResults.INVALID_MESSAGE,
     ].includes(label);
     
     results.transport_posture_enforcement = {
@@ -255,9 +241,9 @@ export async function routerPipelineTests() {
     const ok = label === 'success';
     
     const pass = ok === false && [
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.AUTHENTICATION_FAILED,
-      ROUTER.INVALID_MESSAGE,
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.AUTHENTICATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
     ].includes(label);
     
     results.btc_association_validation = {
@@ -276,7 +262,7 @@ export async function routerPipelineTests() {
   // 7) Pipeline Ordering Test - verify failures happen at appropriate stages
   try {
     const body = JSON.stringify({ test: 'pipeline_ordering', timestamp: Date.now() });
-    const validPacked = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const validPacked = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (validPacked.success) {
       // First, verify a valid message succeeds

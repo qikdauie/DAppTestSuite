@@ -12,6 +12,7 @@ export default defineConfig({
       { find: /^decent_app_sdk\/singleton$/, replacement: pathResolve(__dirname, 'submodules/decent_app_sdk/src/client/singleton.js') },
       { find: /^decent_app_sdk\/protocols$/, replacement: pathResolve(__dirname, 'submodules/decent_app_sdk/src/protocols/index.js') },
       { find: /^decent_app_sdk\/components$/, replacement: pathResolve(__dirname, 'submodules/decent_app_sdk/src/components/index.js') },
+      { find: /^decent_app_sdk\/constants$/, replacement: pathResolve(__dirname, 'submodules/decent_app_sdk/src/constants/index.js') },
       { find: /^decent_app_sdk$/, replacement: pathResolve(__dirname, 'submodules/decent_app_sdk/src/client/index.js') },
     ]
   },

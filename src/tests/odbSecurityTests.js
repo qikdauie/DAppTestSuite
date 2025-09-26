@@ -1,4 +1,5 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { RouterResults, MessageTypes } from 'decent_app_sdk/constants';
 
 /**
  * Origin-DID Binding (ODB) Security Tests
@@ -15,26 +16,12 @@ import { getReadyDecentClient} from 'decent_app_sdk';
  * - Origin verification
  */
 
-// RouterResult enum for send operations
-const ROUTER = {
-  SUCCESS: 'success',
-  ABORTED: 'aborted',
-  ACCESS_DENIED: 'access-denied',
-  INVALID_ADDRESS: 'invalid-address',
-  ADDRESS_IN_USE: 'address-in-use',
-  INVALID_MESSAGE: 'invalid-message',
-  NO_ROUTE: 'no-route',
-  VALIDATION_FAILED: 'validation-failed',
-  AUTHENTICATION_FAILED: 'authentication-failed',
-  REQUEST_EXPIRED: 'request-expired',
-  RATE_LIMIT_EXCEEDED: 'rate-limit-exceeded',
-  UNKNOWN_ERROR: 'unknown-error',
-};
+// RouterResults imported from SDK constants replaces local enum
 
 function expectFailureLabel(routerResult) {
   if (typeof routerResult === 'string') return routerResult;
   if (routerResult && typeof routerResult.result === 'string') return routerResult.result;
-  return ROUTER.UNKNOWN_ERROR;
+  return RouterResults.UNKNOWN_ERROR;
 }
 
 /**
@@ -51,7 +38,7 @@ export async function odbSecurityTests() {
   // 1) ODB Creation Validation - verify proper ODB structure in BTC
   try {
     const body = JSON.stringify({ test: 'odb_creation', timestamp: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -90,8 +77,8 @@ export async function odbSecurityTests() {
     const body1 = JSON.stringify({ test: 'ct_hash_validation', content: 'original', timestamp: Date.now() });
     const body2 = JSON.stringify({ test: 'ct_hash_validation', content: 'modified', timestamp: Date.now() + 1000 });
     
-    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body1, [], '');
-    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body2, [], '');
+    const packed1 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body1, [], '');
+    const packed2 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body2, [], '');
     
     if (packed1.success && packed2.success) {
       const parsed1 = JSON.parse(packed1.message);
@@ -111,9 +98,9 @@ export async function odbSecurityTests() {
       const ok = label === 'success';
       
       const pass = ok === false && [
-        ROUTER.VALIDATION_FAILED,
-        ROUTER.AUTHENTICATION_FAILED,
-        ROUTER.INVALID_MESSAGE,
+        RouterResults.VALIDATION_FAILED,
+        RouterResults.AUTHENTICATION_FAILED,
+        RouterResults.INVALID_MESSAGE,
       ].includes(label);
       
       results.ct_hash_validation = {
@@ -140,9 +127,9 @@ export async function odbSecurityTests() {
     const body = JSON.stringify({ test: 'nonce_replay', timestamp: Date.now() });
     
     // Pack the same content twice - should get different BTC IDs/nonces
-    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed1 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     await new Promise(resolve => setTimeout(resolve, 10)); // Small delay to ensure different timestamps
-    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed2 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed1.success && packed2.success) {
       const header1 = JSON.parse(atob(JSON.parse(packed1.message).protected));
@@ -180,7 +167,7 @@ export async function odbSecurityTests() {
   // 4) Time Window Validation - test ODB expiration (if enforced)
   try {
     const body = JSON.stringify({ test: 'time_validation', timestamp: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success && packed.message) {
       // Immediately send - should succeed
@@ -196,9 +183,9 @@ export async function odbSecurityTests() {
       
       // Delayed send might fail due to expiration or replay detection
       const expectedDelayedFailure = [
-        ROUTER.REQUEST_EXPIRED,
-        ROUTER.VALIDATION_FAILED,
-        ROUTER.AUTHENTICATION_FAILED,
+        RouterResults.REQUEST_EXPIRED,
+        RouterResults.VALIDATION_FAILED,
+        RouterResults.AUTHENTICATION_FAILED,
       ].includes(delayedLabel);
       
       results.time_window_validation = {
@@ -222,7 +209,7 @@ export async function odbSecurityTests() {
   // 5) Origin Verification - test that ODB binds to correct origin
   try {
     const body = JSON.stringify({ test: 'origin_verification', timestamp: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -262,8 +249,8 @@ export async function odbSecurityTests() {
     const body1 = JSON.stringify(bodyObj); // Normal formatting
     const body2 = JSON.stringify(bodyObj, null, 2); // Pretty printed - different bytes, same canonical form
     
-    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body1, [], '');
-    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body2, [], '');
+    const packed1 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body1, [], '');
+    const packed2 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body2, [], '');
     
     if (packed1.success && packed2.success) {
       // Both should pack and send successfully since they have the same canonical content

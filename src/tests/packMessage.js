@@ -1,4 +1,5 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { MessageTypes } from 'decent_app_sdk/constants';
 
 export async function packMessageTest() {
   const msgr = await getReadyDecentClient();
@@ -13,7 +14,7 @@ export async function packMessageTest() {
   // Intentionally exercising low-level pack() for regression coverage
   let result;
   try {
-    result = await msgr.pack(did, "https://didcomm.org/basicmessage/2.0/message", bodyJson, [], "");
+    result = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, bodyJson, [], "");
   } catch (err) {
     return { pass: false, error: err.message };
   }

@@ -1,25 +1,9 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { RouterResults, MessageTypes } from 'decent_app_sdk/constants';
 
 function ok(v) { return v === true || v === 'success' || v?.ok === true; }
 
-// RouterResult enum per browser IDL
-// "success" | "aborted" | "access-denied" | "invalid-address" | "address-in-use" |
-// "invalid-message" | "no-route" | "validation-failed" | "authentication-failed" |
-// "request-expired" | "rate-limit-exceeded" | "unknown-error"
-const ROUTER = {
-  SUCCESS: 'success',
-  ABORTED: 'aborted',
-  ACCESS_DENIED: 'access-denied',
-  INVALID_ADDRESS: 'invalid-address',
-  ADDRESS_IN_USE: 'address-in-use',
-  INVALID_MESSAGE: 'invalid-message',
-  NO_ROUTE: 'no-route',
-  VALIDATION_FAILED: 'validation-failed',
-  AUTHENTICATION_FAILED: 'authentication-failed',
-  REQUEST_EXPIRED: 'request-expired',
-  RATE_LIMIT_EXCEEDED: 'rate-limit-exceeded',
-  UNKNOWN_ERROR: 'unknown-error',
-};
+// RouterResults imported from SDK constants
 
 function isMessageOpFailure(res) {
   return !!res && res.success === false && typeof res.error === 'string' && res.error.length > 0 && typeof res.error_code === 'number';
@@ -29,7 +13,7 @@ function expectFailureLabel(routerResult) {
   // Normalize to string label if available
   if (typeof routerResult === 'string') return routerResult;
   if (routerResult && typeof routerResult.result === 'string') return routerResult.result;
-  return ROUTER.UNKNOWN_ERROR;
+  return RouterResults.UNKNOWN_ERROR;
 }
 
 // Utility: make a very large payload (~600 KiB)
@@ -50,7 +34,7 @@ export async function securityAttackTests() {
   // 1) Plaintext unicast enforcement - PDM auto-encrypts all unicast per security model §3.1
   try {
     const bodyJson = JSON.stringify({ attempt: 'verify_auto_encryption' });
-    const res = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', bodyJson, [], '');
+    const res = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, bodyJson, [], '');
     
     // PDM should always return encrypted JWE for unicast, never plaintext
     if (res.success === true && res.message) {
@@ -101,10 +85,10 @@ export async function securityAttackTests() {
     const label = (typeof send === 'string') ? send : send?.result;
     const ok = label === 'success';
     const pass = ok === false && [
-      ROUTER.INVALID_MESSAGE,
-      ROUTER.ACCESS_DENIED,
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.AUTHENTICATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
+      RouterResults.ACCESS_DENIED,
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.AUTHENTICATION_FAILED,
     ].includes(label);
     results.signed_only_unicast_rejected = {
       pass,
@@ -123,7 +107,7 @@ export async function securityAttackTests() {
     const jwmPlain = JSON.stringify({
       typ: 'application/didcomm-plain+json',
       id: 'test',
-      type: 'https://didcomm.org/basicmessage/2.0/message',
+      type: MessageTypes.BASIC_MESSAGE.MESSAGE,
       from: did,
       to: [did],
       body: { hello: 'world' }
@@ -132,10 +116,10 @@ export async function securityAttackTests() {
     const label = (typeof send === 'string') ? send : send?.result;
     const ok = label === 'success';
     const pass = ok === false && [
-      ROUTER.INVALID_MESSAGE,
-      ROUTER.ACCESS_DENIED,
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.AUTHENTICATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
+      RouterResults.ACCESS_DENIED,
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.AUTHENTICATION_FAILED,
     ].includes(label);
     results.plaintext_jwm_rejected = {
       pass,
@@ -152,7 +136,7 @@ export async function securityAttackTests() {
   // 4) Oversize message limit (512 KiB per security model §7.3) - SKIPPED: enforcement not implemented
   try {
     const bigBody = makeOversizeBody();
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', bigBody, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, bigBody, [], '');
     const approximateSize = (packed?.message || '').length;
     
     results.oversize_limit_enforced = {
@@ -174,7 +158,7 @@ export async function securityAttackTests() {
   // 5) Tamper message_hash (simulate by mutating ciphertext) should fail on send
   try {
     const body = JSON.stringify({ attempt: 'tamper' });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     let mutated = packed?.message || '';
     // naive mutation: flip a character in the middle
     if (mutated.length > 10) {
@@ -185,10 +169,10 @@ export async function securityAttackTests() {
     const label = (typeof send === 'string') ? send : send?.result;
     const ok = label === 'success';
     const pass = ok === false && [
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.AUTHENTICATION_FAILED,
-      ROUTER.INVALID_MESSAGE,
-      ROUTER.UNKNOWN_ERROR,
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.AUTHENTICATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
+      RouterResults.UNKNOWN_ERROR,
     ].includes(label);
     results.tamper_detected = {
       pass,
@@ -205,7 +189,7 @@ export async function securityAttackTests() {
   // 6) Replay: send the same packed twice; second should fail or be coalesced
   try {
     const body = JSON.stringify({ attempt: 'replay', n: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     const first = await msgr.send(did, packed?.message || '');
     const second = await msgr.send(did, packed?.message || '');
     const label1 = (typeof first === 'string') ? first : first?.result;
@@ -214,12 +198,12 @@ export async function securityAttackTests() {
     const ok2 = label2 === 'success';
     const pass = ok1 && (
       ok2 === false && [
-        ROUTER.ABORTED,
-        ROUTER.REQUEST_EXPIRED,
-        ROUTER.VALIDATION_FAILED,
-        ROUTER.AUTHENTICATION_FAILED,
-        ROUTER.INVALID_MESSAGE,
-        ROUTER.UNKNOWN_ERROR,
+        RouterResults.ABORTED,
+        RouterResults.REQUEST_EXPIRED,
+        RouterResults.VALIDATION_FAILED,
+        RouterResults.AUTHENTICATION_FAILED,
+        RouterResults.INVALID_MESSAGE,
+        RouterResults.UNKNOWN_ERROR,
       ].includes(label2)
     );
     results.replay_prevented = {
@@ -237,13 +221,13 @@ export async function securityAttackTests() {
   // 7) Backpressure: burst sends to attempt quota exceed (result may vary)
   try {
     const body = JSON.stringify({ attempt: 'burst', t: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     const messages = new Array(20).fill(packed?.message || '');
     const sends = await Promise.all(messages.map(m => msgr.send(did, m)));
     const labels = sends.map(s => (typeof s === 'string') ? s : s?.result);
     const oks = sends.map(s => ((typeof s === 'string') ? s : s?.result) === 'success');
     const anyFail = oks.some(v => v === false);
-    const anyRateLimited = labels.includes(ROUTER.RATE_LIMIT_EXCEEDED);
+    const anyRateLimited = labels.includes(RouterResults.RATE_LIMIT_EXCEEDED);
     results.backpressure_kicks_in = {
       pass: anyFail || anyRateLimited || sends.length > 0,
       detail: {
@@ -251,7 +235,7 @@ export async function securityAttackTests() {
         responses: { packMessage: packed, sendMessages: sends, labels },
         count: sends.length,
         failures: oks.filter(v => v === false).length,
-        rateLimited: labels.filter(l => l === ROUTER.RATE_LIMIT_EXCEEDED).length
+        rateLimited: labels.filter(l => l === RouterResults.RATE_LIMIT_EXCEEDED).length
       }
     };
   } catch (err) {
@@ -263,7 +247,7 @@ export async function securityAttackTests() {
   // 8) BTC ID tampering - verify Router rejects manipulated btc_id values
   try {
     const body = JSON.stringify({ attempt: 'btc_tamper', timestamp: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -280,9 +264,9 @@ export async function securityAttackTests() {
       const ok = label === 'success';
       
       const pass = ok === false && [
-        ROUTER.VALIDATION_FAILED,
-        ROUTER.AUTHENTICATION_FAILED,
-        ROUTER.INVALID_MESSAGE,
+        RouterResults.VALIDATION_FAILED,
+        RouterResults.AUTHENTICATION_FAILED,
+        RouterResults.INVALID_MESSAGE,
       ].includes(label);
       
       results.btc_id_tampering_detected = {
@@ -308,8 +292,8 @@ export async function securityAttackTests() {
     const body1 = JSON.stringify({ attempt: 'btc_reuse', content: 'first', timestamp: Date.now() });
     const body2 = JSON.stringify({ attempt: 'btc_reuse', content: 'second', timestamp: Date.now() + 1000 });
     
-    const packed1 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body1, [], '');
-    const packed2 = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body2, [], '');
+    const packed1 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body1, [], '');
+    const packed2 = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body2, [], '');
     
     if (packed1.success && packed2.success) {
       const parsed1 = JSON.parse(packed1.message);
@@ -328,9 +312,9 @@ export async function securityAttackTests() {
       const ok = label === 'success';
       
       const pass = ok === false && [
-        ROUTER.VALIDATION_FAILED,
-        ROUTER.AUTHENTICATION_FAILED,
-        ROUTER.INVALID_MESSAGE,
+        RouterResults.VALIDATION_FAILED,
+        RouterResults.AUTHENTICATION_FAILED,
+        RouterResults.INVALID_MESSAGE,
       ].includes(label);
       
       results.btc_id_reuse_prevented = {
@@ -355,7 +339,7 @@ export async function securityAttackTests() {
   // 10) Protected header structure validation - verify required fields
   try {
     const body = JSON.stringify({ attempt: 'header_validation', timestamp: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -389,7 +373,7 @@ export async function securityAttackTests() {
   // 11) JWE structure integrity - verify all required JWE components
   try {
     const body = JSON.stringify({ attempt: 'jwe_structure', timestamp: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success && packed.message) {
       const parsed = JSON.parse(packed.message);
@@ -437,9 +421,9 @@ export async function securityAttackTests() {
     
     // Should get specific validation error, not generic unknown-error
     const hasSpecificError = [
-      ROUTER.VALIDATION_FAILED,
-      ROUTER.INVALID_MESSAGE,
-      ROUTER.AUTHENTICATION_FAILED
+      RouterResults.VALIDATION_FAILED,
+      RouterResults.INVALID_MESSAGE,
+      RouterResults.AUTHENTICATION_FAILED
     ].includes(label);
     
     results.error_code_specificity = {

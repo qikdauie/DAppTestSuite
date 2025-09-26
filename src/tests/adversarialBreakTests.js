@@ -1,4 +1,5 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { RouterResults, MessageTypes } from 'decent_app_sdk/constants';
 
 /**
  * 💀 ADVERSARIAL BREAK TESTS 💀
@@ -17,25 +18,12 @@ import { getReadyDecentClient} from 'decent_app_sdk';
  * 💀 USE AT YOUR OWN RISK 💀
  */
 
-const ROUTER = {
-  SUCCESS: 'success',
-  ABORTED: 'aborted',
-  ACCESS_DENIED: 'access-denied',
-  INVALID_ADDRESS: 'invalid-address',
-  ADDRESS_IN_USE: 'address-in-use',
-  INVALID_MESSAGE: 'invalid-message',
-  NO_ROUTE: 'no-route',
-  VALIDATION_FAILED: 'validation-failed',
-  AUTHENTICATION_FAILED: 'authentication-failed',
-  REQUEST_EXPIRED: 'request-expired',
-  RATE_LIMIT_EXCEEDED: 'rate-limit-exceeded',
-  UNKNOWN_ERROR: 'unknown-error',
-};
+// RouterResults imported from SDK constants replaces local enum
 
 function expectFailureLabel(routerResult) {
   if (typeof routerResult === 'string') return routerResult;
   if (routerResult && typeof routerResult.result === 'string') return routerResult.result;
-  return ROUTER.UNKNOWN_ERROR;
+  return RouterResults.UNKNOWN_ERROR;
 }
 
 export async function adversarialBreakTests() {
@@ -46,7 +34,7 @@ export async function adversarialBreakTests() {
   // 💥 ATTACK 1: BTC ID Integer Overflow/Underflow APOCALYPSE
   try {
     const body = JSON.stringify({ attack: 'btc_overflow_apocalypse' });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
@@ -143,7 +131,7 @@ export async function adversarialBreakTests() {
   // ⚡ ATTACK 2: EXTREME Race Condition Attack - 100 CONCURRENT HAMMERING
   try {
     const body = JSON.stringify({ attack: 'extreme_race_condition', timestamp: Date.now() });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success) {
       // Launch 100 concurrent sends of the SAME message to find race conditions
@@ -189,7 +177,7 @@ export async function adversarialBreakTests() {
   // 🔤 ATTACK 3: ULTIMATE Unicode/Encoding Apocalypse
   try {
     const body = JSON.stringify({ attack: 'unicode_apocalypse' });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
@@ -309,7 +297,7 @@ export async function adversarialBreakTests() {
         const startTime = Date.now();
         const bodyJson = JSON.stringify(attack.payload);
         const stringifyTime = Date.now();
-        const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', bodyJson, [], '');
+        const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, bodyJson, [], '');
         const endTime = Date.now();
         
         bombResults.push({
@@ -353,7 +341,7 @@ export async function adversarialBreakTests() {
   // ⏱️ ATTACK 5: PRECISION Timing Attack on BTC Validation
   try {
     const validBody = JSON.stringify({ attack: 'precision_timing_attack' });
-        const validPacked = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', validBody, [], '');
+        const validPacked = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, validBody, [], '');
     
     if (validPacked.success) {
       const parsed = JSON.parse(validPacked.message);
@@ -487,7 +475,7 @@ export async function adversarialBreakTests() {
         const timeTaken = endTime - startTime;
         const shouldBeRejected = test.size > (3 * 1024 * 1024); // Components over 3MB should be rejected
         const label = (typeof result === 'string') ? result : result?.result;
-        const wasRejected = label === 'validation-failed';
+        const wasRejected = label === RouterResults.VALIDATION_FAILED;
         
         memoryResults.push({
           name: test.name,
@@ -532,7 +520,7 @@ export async function adversarialBreakTests() {
   try {
     // Try to discover/guess BTC IDs from other origins/sessions with ADVANCED techniques
     const body = JSON.stringify({ attack: 'advanced_cross_origin_pollution' });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
@@ -604,7 +592,7 @@ export async function adversarialBreakTests() {
   // 💉 ATTACK 8: ULTIMATE JWE Header Injection Apocalypse
   try {
     const body = JSON.stringify({ attack: 'ultimate_header_injection' });
-    const packed = await msgr.pack(did, 'https://didcomm.org/basicmessage/2.0/message', body, [], '');
+    const packed = await msgr.pack(did, MessageTypes.BASIC_MESSAGE.MESSAGE, body, [], '');
     
     if (packed.success) {
       const parsed = JSON.parse(packed.message);
