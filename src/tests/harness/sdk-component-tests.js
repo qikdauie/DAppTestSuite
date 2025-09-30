@@ -130,8 +130,8 @@ export async function sdkProtocolUserProfileTest() {
     try { await msgr.protocols.refresh(); } catch {}
     const p = msgr.protocols['user-profile-v1'];
     if (!p) return { pass: true, skipped: true, reason: 'user-profile-v1 proxy unavailable' };
-    const sendRes = await p.invokeClientMethod('sendProfile', [did, { name: 'A' }, { send_back_yours: true }]);
-    const got = await p.invokeClientMethod('getProfile', ['self']);
+    const sendRes = await p.sendProfile(did, { name: 'A' }, { send_back_yours: true });
+    const got = await p.getProfile('self');
     const pass = !!(sendRes && sendRes.ok === true) && !!(got && got.ok === true);
     return { pass, sendRes, got };
   } catch (err) {
@@ -142,11 +142,12 @@ export async function sdkProtocolUserProfileTest() {
 export async function sdkProtocolShareMediaTest() {
   try {
     const msgr = await init();
+    const { did } = await msgr.getDID();
     try { await msgr.protocols.refresh(); } catch {}
     const p = msgr.protocols['share-media-v1'];
     if (!p) return { pass: true, skipped: true, reason: 'share-media-v1 proxy unavailable' };
-    const media = [{ mime_type: 'image/jpeg', base64: 'AAAA', filename: 'a.jpg', caption: 'hi' }];
-    const res = await p.invokeClientMethod('shareMedia', ['did:x', media, {}]);
+    const media = [{ mimeType: 'image/jpeg', data: btoa('x'), filename: 'a.jpg', caption: 'hi' }];
+    const res = await p.shareMedia(did, media, {});
     const pass = !!(res && res.ok === true);
     return { pass, res };
   } catch (err) {
@@ -157,10 +158,11 @@ export async function sdkProtocolShareMediaTest() {
 export async function sdkProtocolReportProblemTest() {
   try {
     const msgr = await init();
+    const { did } = await msgr.getDID();
     try { await msgr.protocols.refresh(); } catch {}
     const p = msgr.protocols['report-problem-v2'];
     if (!p) return { pass: true, skipped: true, reason: 'report-problem-v2 proxy unavailable' };
-    const res = await p.invokeClientMethod('sendProblemReport', ['did:x', { problemCode: 'E_FAIL', comment: 'oops' }]);
+    const res = await p.sendProblemReport(did, { problemCode: 'request_processing_error', explain: 'oops' });
     const pass = !!(res && res.ok === true);
     return { pass, res };
   } catch (err) {
