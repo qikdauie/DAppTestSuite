@@ -1,4 +1,5 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { toJsonSafe } from '../../utils/jsonSafe';
 import { RouterResults, MessageTypes } from 'decent_app_sdk/constants';
 
 /**
@@ -104,7 +105,7 @@ export async function adversarialBreakTests() {
             vulnerabilities.push({
               btcId: maliciousBtcId,
               unexpectedSuccess: true,
-              response: result
+              response: toJsonSafe(result)
             });
           }
         } catch (e) {
@@ -482,7 +483,7 @@ export async function adversarialBreakTests() {
           size: test.size,
           sizeMB: (test.size / (1024 * 1024)).toFixed(2),
           timeTaken,
-          result: result,
+          result: toJsonSafe(result),
           shouldBeRejected,
           wasRejected,
           properlyHandled: shouldBeRejected ? wasRejected : true,
@@ -564,7 +565,7 @@ export async function adversarialBreakTests() {
             crossOriginVulnerabilities.push({
               originalBtcId: header.btc_id,
               guessedBtcId,
-              difference: BigInt(guessedBtcId) - currentBtcId,
+              difference: toJsonSafe(BigInt(guessedBtcId) - currentBtcId),
               unexpectedSuccess: true
             });
           }
@@ -745,4 +746,5 @@ export async function advancedCrossOriginPollutionTest() {
 export async function ultimateHeaderInjectionTest() {
   return (await adversarialBreakTests()).results.ultimate_header_injection;
 }
+
 

@@ -7,7 +7,12 @@
     "dev:3001": "vite --port 3001",
     "build": "vite build",
     "preview": "vite preview --port 8080 --host",
-    "start": "vite preview --port 8080 --host"
+    "start": "vite preview --port 8080 --host",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:ui": "echo 'All tests are UI-triggered and must be run in the custom browser. Start the dev server with npm run dev and open http://localhost:5173 in the custom browser, then navigate to the All Tests tab.' && exit 0",
+    "test:browser": "echo 'All tests are UI-triggered and must be run in the custom browser. Start the dev server with npm run dev and open http://localhost:5173 in the custom browser, then navigate to the All Tests tab.' && exit 0"
   },
   "dependencies": {
     "decent_app_sdk": "file:./submodules/decent_app_sdk",
@@ -16,6 +21,9 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
-    "vite": "^5.0.0"
+    "vite": "^5.0.0",
+    "vitest": "^2.1.3",
+    "happy-dom": "^14.12.3",
+    "@peculiar/webcrypto": "^1.4.5"
   }
 }

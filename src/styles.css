@@ -1,0 +1,137 @@
+/* CSS Reset (minimal) */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen, Ubuntu, Cantarell, Helvetica Neue, Arial, "Noto Sans", sans-serif; color: var(--fg, #222); background: var(--bg, #fff); line-height: 1.45; }
+h1, h2, h3, h4 { line-height: 1.2; }
+
+/* Palette */
+:root {
+  --primary: #ff6a00;
+  --primary-hover: #e85d00;
+  --border: #ddd;
+  --muted: #666;
+  --bg-muted: #f7f7f7;
+  --radius: 8px;
+  --shadow: 0 1px 2px rgba(0,0,0,0.06);
+
+  --pass-bg: #d4edda;
+  --pass-fg: #155724;
+  --fail-bg: #f8d7da;
+  --fail-fg: #721c24;
+  --run-bg: #fff3cd;
+  --run-fg: #856404;
+  --idle-bg: #e9ecef;
+  --idle-fg: #495057;
+
+  --bg: #ffffff;
+  --fg: #222222;
+  --card-bg: #ffffff;
+}
+
+[data-theme="dark"] {
+  --primary: #ff6a00;
+  --primary-hover: #e85d00;
+  --border: #333;
+  --muted: #aaa;
+  --bg-muted: #1f1f1f;
+  --shadow: 0 1px 2px rgba(0,0,0,0.5);
+
+  --pass-bg: #244030;
+  --pass-fg: #b7f0c6;
+  --fail-bg: #402428;
+  --fail-fg: #f6b3bb;
+  --run-bg: #433b22;
+  --run-fg: #ffe8a1;
+  --idle-bg: #2a2a2a;
+  --idle-fg: #cfd3d7;
+
+  --bg: #121212;
+  --fg: #e4e4e4;
+  --card-bg: #1a1a1a;
+}
+
+/* Selection */
+::selection { background: rgba(255,106,0,0.3); }
+
+/* Buttons */
+.btn { border: 1px solid var(--border); padding: 0.45rem 0.9rem; border-radius: 6px; background: var(--card-bg, #fff); cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease; }
+.btn:hover { background: #f3f3f3; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+.btn-secondary { background: var(--idle-bg); color: var(--idle-fg); border-color: #ccc; }
+.btn-secondary:hover { background: #dee2e6; }
+
+/* Clear/secondary emphasis */
+.btn-outline { background: transparent; color: var(--primary); border-color: var(--primary); }
+.btn-outline:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.btn-copy { position: absolute; right: 0.5rem; top: 0.5rem; font-size: 0.8rem; padding: 0.25rem 0.6rem; }
+.btn-copy.is-copied { background: var(--pass-bg); color: var(--pass-fg); }
+
+/* Cards / containers */
+.card { border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; background: var(--card-bg); box-shadow: var(--shadow); }
+.test-container { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; padding: 1rem; background: var(--card-bg); }
+
+/* Pre blocks */
+.pre-with-copy { position: relative; margin-top: 0.75rem; }
+.pre-block { background: var(--bg-muted); padding: 0.5rem; overflow: auto; white-space: pre-wrap; word-break: break-word; border-radius: 6px; border: 1px solid #eee; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 0.9rem; line-height: 1.45; }
+.pre-block::-webkit-scrollbar { height: 8px; width: 8px; }
+.pre-block::-webkit-scrollbar-thumb { background: var(--idle-fg); border-radius: 6px; }
+.pre-block::-webkit-scrollbar-track { background: transparent; }
+
+/* Forms */
+/* Input theming vars */
+:root { --input-bg: #ffffff; --input-fg: #222222; --input-border: #ddd; --input-placeholder: #888; }
+[data-theme="dark"] { --input-bg: #1a1a1a; --input-fg: #e4e4e4; --input-border: #444; --input-placeholder: #9aa0a6; }
+input, select, textarea { border: 1px solid var(--input-border); border-radius: 6px; padding: 0.45rem 0.55rem; font-size: 0.95rem; background: var(--input-bg); color: var(--input-fg); }
+input::placeholder, textarea::placeholder { color: var(--input-placeholder); }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+label { font-size: 0.92rem; }
+
+/* Grid helpers */
+.grid { display: grid; gap: 0.75rem; }
+.grid-auto { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+.container { max-width: 1100px; margin: 0 auto; }
+
+/* Tab nav */
+.tab-nav { display: flex; gap: 0.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+.tab-button { border: 1px solid var(--border); background: var(--idle-bg); color: var(--fg); padding: 0.5rem 1rem; border-top-left-radius: 6px; border-top-right-radius: 6px; cursor: pointer; transition: color 120ms ease, border-color 120ms ease, background-color 120ms ease; }
+.tab-button:hover { border-color: var(--primary); color: var(--primary); }
+.tab-button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+/* Utility */
+.muted { color: var(--muted); }
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: 0.5rem; }
+.mb-2 { margin-bottom: 1rem; }
+.mt-1 { margin-top: 0.5rem; }
+.mt-2 { margin-top: 1rem; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.gap-1 { gap: 0.5rem; }
+.gap-2 { gap: 1rem; }
+
+/* Badges */
+.badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; border: 1px solid transparent; }
+.badge-pass { background: var(--pass-bg); color: var(--pass-fg); border-color: rgba(0,0,0,0.05); }
+.badge-fail { background: var(--fail-bg); color: var(--fail-fg); border-color: rgba(0,0,0,0.05); }
+.badge-running { background: var(--run-bg); color: var(--run-fg); border-color: rgba(0,0,0,0.05); }
+.badge-idle { background: var(--idle-bg); color: var(--idle-fg); border-color: rgba(0,0,0,0.05); }
+
+/* Messenger bubbles */
+.bubble { padding: 6px 10px; border-radius: 10px; display: inline-block; max-width: 80%; text-align: left; }
+.bubble-out { background: var(--pass-bg); color: var(--pass-fg); }
+.bubble-in { background: var(--idle-bg); color: var(--idle-fg); }
+
+/* Status helpers (if needed for non-buttons) */
+.bg-pass { background: var(--pass-bg); color: var(--pass-fg); }
+.bg-fail { background: var(--fail-bg); color: var(--fail-fg); }
+.bg-running { background: var(--run-bg); color: var(--run-fg); }
+.bg-idle { background: var(--idle-bg); color: var(--idle-fg); }
+
+

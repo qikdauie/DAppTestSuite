@@ -1,7 +1,7 @@
 import { initServiceWorker } from 'decent_app_sdk/service-worker';
 
 // In-SW UI prompt coordination
-const pendingUi = new Map(); // correlationId -> { resolve }
+const pendingUi = new Map(); // thid -> { resolve }
 
 function actionFromType(type) {
   try {
@@ -12,18 +12,32 @@ function actionFromType(type) {
   } catch { return ''; }
 }
 
-async function promptUiAndAwait(correlationId, action, params, timeoutMs = 8000) {
+function extractThid(msg) {
+  try {
+    const m = typeof msg === 'string' ? JSON.parse(msg) : (msg || {});
+    const topLevelThid = typeof m?.thid === 'string' ? m.thid : null;
+    const topLevelPthid = typeof m?.pthid === 'string' ? m.pthid : null;
+    if (topLevelThid || topLevelPthid) return topLevelThid || topLevelPthid || '';
+    const thread = m['~thread'] || {};
+    const thid = thread?.thid;
+    const pthid = thread?.pthid;
+    return (typeof thid === 'string' && thid) || (typeof pthid === 'string' && pthid) || '';
+  } catch { return ''; }
+}
+
+async function promptUiAndAwait(thid, action, params, timeoutMs = 8000) {
   try {
     const clientsList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const client of clientsList) {
       try {
-        client.postMessage({ kind: 'intent-ui-request', correlationId, payload: { action, params } });
+        client.postMessage({ kind: 'intent-ui-request', thid, payload: { action, params } });
+        try { console?.log?.('[SW] intent-ui-request posted to client', { clientId: String(client.id || ''), action, thid }); } catch {}
       } catch {}
     }
   } catch {}
   return new Promise((resolve) => {
-    const timer = setTimeout(() => { pendingUi.delete(correlationId); resolve(null); }, timeoutMs);
-    pendingUi.set(correlationId, { resolve: (value) => { clearTimeout(timer); pendingUi.delete(correlationId); resolve(value); } });
+    const timer = setTimeout(() => { pendingUi.delete(thid); try { console?.warn?.('[SW] intent-ui-response timeout', { thid }); } catch {} resolve(null); }, timeoutMs);
+    pendingUi.set(thid, { resolve: (value) => { clearTimeout(timer); pendingUi.delete(thid); resolve(value); } });
   });
 }
 
@@ -31,13 +45,29 @@ self.addEventListener('message', (evt) => {
   try {
     const data = evt?.data || {};
     if (data.kind !== 'intentUiResponse') return;
-    const cid = data?.data?.correlationId;
+    const tid = data?.data?.thid;
     const payload = data?.data?.payload;
-    if (!cid || !pendingUi.has(cid)) return;
-    const entry = pendingUi.get(cid);
+    if (!tid || !pendingUi.has(tid)) return;
+    const entry = pendingUi.get(tid);
+    try { console?.log?.('[SW] intent-ui-response received', { thid: tid, hasPayload: payload != null }); } catch {}
     entry?.resolve?.(payload);
   } catch {}
 });
+
+// Ensure SW takes control immediately on first load and updates activate quickly
+try {
+  self.addEventListener('install', (event) => {
+    try { console?.log?.('[SW] installing and skipping waiting'); } catch {}
+    try { event?.waitUntil?.(self.skipWaiting()); } catch { try { self.skipWaiting?.(); } catch {} }
+  });
+} catch {}
+
+try {
+  self.addEventListener('activate', (event) => {
+    try { console?.log?.('[SW] activated and claiming clients'); } catch {}
+    try { event?.waitUntil?.(self.clients.claim()); } catch { try { self.clients.claim?.(); } catch {} }
+  });
+} catch {}
 
 // Initialize Service Worker with built-in protocols and canned intent handlers for tests
 initServiceWorker({
@@ -49,11 +79,11 @@ initServiceWorker({
       async onRequest(envelope) {
         const type = envelope?.type || '';
         const action = actionFromType(type);
-        const correlationId = envelope?.correlationId || '';
+        const thid = extractThid(envelope?.raw || envelope) || '';
         const params = (envelope?.body && envelope.body.params) || {};
 
         // Always prompt UI; if no response, decline instead of auto-canning
-        const ui = await promptUiAndAwait(correlationId, action, params, 120000);
+        const ui = await promptUiAndAwait(thid, action, params, 120000);
         if (ui == null) {
           return { decline: { reason: 'timeout', retry_after_ms: 0 } };
         }

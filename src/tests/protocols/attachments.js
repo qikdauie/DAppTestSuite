@@ -1,6 +1,6 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
 import { MessageTypes } from 'decent_app_sdk/constants';
-import { normalizeAttachments } from '../../submodules/decent_app_sdk/src/utils/attachments.js';
+import { normalizeAttachments } from '../../../submodules/decent_app_sdk/src/utils/attachments.js';
 
 function makeInlineTextAttachment(id, text, filename = 'note.txt', description = 'Inline text attachment') {
   // Use base64 to keep transport deterministic across environments
@@ -134,5 +134,6 @@ export async function attachmentsAllTest() {
   const pass = inline.pass && external.pass && multiple.pass;
   return { pass, results: { inline, external, multiple } };
 }
+
 
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getReadyDecentClient} from 'decent_app_sdk';
+import { PreWithCopy } from './components';
 
 const APP_INTENT_BASE = 'https://didcomm.org/app-intent/1.0';
 
@@ -71,14 +72,14 @@ export default function IntentLab() {
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState(null);
   const [discovering, setDiscovering] = useState(false);
-  const [pendingUiRequest, setPendingUiRequest] = useState(null); // {correlationId, action, params}
+  const [pendingUiRequest, setPendingUiRequest] = useState(null); // {thid, action, params}
 
   // Listen for SW-driven UI prompts for interactive provider behavior
   useEffect(() => {
     function onMessage(evt) {
       const data = evt.data || {};
       if (data.kind !== 'intent-ui-request') return;
-      setPendingUiRequest({ correlationId: data.correlationId, ...data.payload });
+      setPendingUiRequest({ thid: data.thid, ...data.payload });
     }
     if (navigator.serviceWorker) {
       navigator.serviceWorker.addEventListener('message', onMessage);
@@ -120,7 +121,7 @@ export default function IntentLab() {
 
   async function respondToIntentPrompt(payload) {
     if (!pendingUiRequest) return;
-    const msg = { kind: 'intentUiResponse', data: { correlationId: pendingUiRequest.correlationId, payload } };
+    const msg = { kind: 'intentUiResponse', data: { thid: pendingUiRequest.thid, payload } };
     const ok = await postToServiceWorker(msg);
     if (!ok) {
       try { navigator.serviceWorker?.controller?.postMessage?.(msg); } catch {}
@@ -219,6 +220,7 @@ export default function IntentLab() {
     try {
       const body = buildRequestBody();
       const requestType = `${APP_INTENT_BASE}/${selectedGoalCode}-request`;
+      try { console?.log?.('[UI] sending intent request', { to: selectedProvider, requestType, body, waitForResult, timeoutMs }); } catch {}
       const res = await msgr.protocols.intents.request(
         selectedProvider,
         body,
@@ -228,8 +230,10 @@ export default function IntentLab() {
           requestType
         }
       );
+      try { console?.log?.('[UI] intent response', res); } catch {}
       setResult({ ok: true, request: body, response: res });
     } catch (err) {
+      try { console?.error?.('[UI] intent request failed', err); } catch {}
       setResult({ ok: false, error: String(err) });
     } finally {
       setSending(false);
@@ -239,19 +243,19 @@ export default function IntentLab() {
   const providerOptions = Object.keys(providers || {});
 
   return (
-    <div style={{ padding: '1rem', display: 'grid', gap: '1rem' }}>
+    <div className="grid" style={{ padding: '1rem' }}>
       <section>
         <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Intent Lab</h2>
-        <div style={{ color: '#666', marginTop: '0.25rem' }}>Your DID: {myDid || '...'}</div>
+        <div className="muted" style={{ marginTop: '0.25rem' }}>Your DID: {myDid || '...'}</div>
       </section>
 
-      <section style={{ display: 'grid', gap: '0.75rem' }}>
+      <section className="grid">
         <div>
           <label style={{ display: 'block', fontWeight: 600 }}>Intent</label>
           <select
             value={selectedIntentLabel}
             onChange={(e) => setSelectedIntentLabel(e.target.value)}
-            style={{ padding: '0.4rem', minWidth: '16rem' }}
+            style={{ minWidth: '16rem' }}
           >
             {Object.keys(INTENTS).map((label) => (
               <option key={label} value={label}>{label}</option>
@@ -261,7 +265,7 @@ export default function IntentLab() {
         </div>
 
         <div>
-          <button onClick={handleDiscover} disabled={!msgr || discovering}>
+          <button className="btn btn-primary" onClick={handleDiscover} disabled={!msgr || discovering}>
             {discovering ? 'Discovering…' : 'Discover Providers'}
           </button>
         </div>
@@ -271,7 +275,7 @@ export default function IntentLab() {
           <select
             value={selectedProvider}
             onChange={(e) => setSelectedProvider(e.target.value)}
-            style={{ padding: '0.4rem', minWidth: '24rem' }}
+            style={{ minWidth: '24rem' }}
           >
             <option value="">{providerOptions.length ? 'Select…' : 'No providers discovered'}</option>
             {providerOptions.map((did) => (
@@ -282,18 +286,18 @@ export default function IntentLab() {
 
         {/* Dynamic params */}
         {selectedGoalCode === INTENTS['Compose Email'] && (
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div className="grid">
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>To</label>
-              <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <input value={emailTo} onChange={(e) => setEmailTo(e.target.value)} style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Subject</label>
-              <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Body</label>
-              <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} style={{ width: '100%' }} />
             </div>
           </div>
         )}
@@ -301,53 +305,53 @@ export default function IntentLab() {
         {selectedGoalCode === INTENTS['Share'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Text to share</label>
-            <textarea value={shareText} onChange={(e) => setShareText(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <textarea value={shareText} onChange={(e) => setShareText(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Open URL'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>URL</label>
-            <input value={openUrl} onChange={(e) => setOpenUrl(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <input value={openUrl} onChange={(e) => setOpenUrl(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Dial Call'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Phone number</label>
-            <input value={dialNumber} onChange={(e) => setDialNumber(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <input value={dialNumber} onChange={(e) => setDialNumber(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Open Map Navigation'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Destination</label>
-            <input value={navDestination} onChange={(e) => setNavDestination(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <input value={navDestination} onChange={(e) => setNavDestination(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Add Calendar Event'] && (
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div className="grid">
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Title</label>
-              <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <input value={eventTitle} onChange={(e) => setEventTitle(e.target.value)} style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Start</label>
-              <input type="datetime-local" value={eventStartIso} onChange={(e) => setEventStartIso(e.target.value)} style={{ padding: '0.4rem' }} />
+              <input type="datetime-local" value={eventStartIso} onChange={(e) => setEventStartIso(e.target.value)} />
             </div>
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Add Contact'] && (
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div className="grid">
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Name</label>
-              <input value={contactName} onChange={(e) => setContactName(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <input value={contactName} onChange={(e) => setContactName(e.target.value)} style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Phone</label>
-              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} style={{ width: '100%' }} />
             </div>
           </div>
         )}
@@ -355,39 +359,39 @@ export default function IntentLab() {
         {selectedGoalCode === INTENTS['Save To'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Filename</label>
-            <input value={saveFileName} onChange={(e) => setSaveFileName(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <input value={saveFileName} onChange={(e) => setSaveFileName(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Print'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Pages</label>
-            <input type="number" min="1" value={printPages} onChange={(e) => setPrintPages(e.target.value)} style={{ width: '8rem', padding: '0.4rem' }} />
+            <input type="number" min="1" value={printPages} onChange={(e) => setPrintPages(e.target.value)} style={{ width: '8rem' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Translate'] && (
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div className="grid">
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Text</label>
-              <textarea value={translateText} onChange={(e) => setTranslateText(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <textarea value={translateText} onChange={(e) => setTranslateText(e.target.value)} style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>To (lang)</label>
-              <input value={translateTo} onChange={(e) => setTranslateTo(e.target.value)} style={{ width: '12rem', padding: '0.4rem' }} />
+              <input value={translateTo} onChange={(e) => setTranslateTo(e.target.value)} style={{ width: '12rem' }} />
             </div>
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Pay'] && (
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div className="grid">
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Amount</label>
-              <input type="number" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} style={{ width: '10rem', padding: '0.4rem' }} />
+              <input type="number" step="0.01" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} style={{ width: '10rem' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Currency</label>
-              <input value={payCurrency} onChange={(e) => setPayCurrency(e.target.value)} style={{ width: '10rem', padding: '0.4rem' }} />
+              <input value={payCurrency} onChange={(e) => setPayCurrency(e.target.value)} style={{ width: '10rem' }} />
             </div>
           </div>
         )}
@@ -395,19 +399,19 @@ export default function IntentLab() {
         {selectedGoalCode === INTENTS['Sign'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Payload</label>
-            <textarea value={signPayload} onChange={(e) => setSignPayload(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <textarea value={signPayload} onChange={(e) => setSignPayload(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Verify Signature'] && (
-          <div style={{ display: 'grid', gap: '0.5rem' }}>
+          <div className="grid">
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Payload</label>
-              <textarea value={verifyPayload} onChange={(e) => setVerifyPayload(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <textarea value={verifyPayload} onChange={(e) => setVerifyPayload(e.target.value)} style={{ width: '100%' }} />
             </div>
             <div>
               <label style={{ display: 'block', fontWeight: 600 }}>Signature</label>
-              <input value={verifySignature} onChange={(e) => setVerifySignature(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+              <input value={verifySignature} onChange={(e) => setVerifySignature(e.target.value)} style={{ width: '100%' }} />
             </div>
           </div>
         )}
@@ -415,18 +419,18 @@ export default function IntentLab() {
         {selectedGoalCode === INTENTS['Encrypt'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Plaintext</label>
-            <textarea value={encryptPlaintext} onChange={(e) => setEncryptPlaintext(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <textarea value={encryptPlaintext} onChange={(e) => setEncryptPlaintext(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
         {selectedGoalCode === INTENTS['Decrypt'] && (
           <div>
             <label style={{ display: 'block', fontWeight: 600 }}>Ciphertext</label>
-            <textarea value={decryptCiphertext} onChange={(e) => setDecryptCiphertext(e.target.value)} style={{ width: '100%', padding: '0.4rem' }} />
+            <textarea value={decryptCiphertext} onChange={(e) => setDecryptCiphertext(e.target.value)} style={{ width: '100%' }} />
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div className="flex items-center gap-2">
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <input type="checkbox" checked={waitForResult} onChange={(e) => setWaitForResult(e.target.checked)} />
             Wait for result
@@ -438,10 +442,10 @@ export default function IntentLab() {
               min="0"
               value={timeoutMs}
               onChange={(e) => setTimeoutMs(e.target.value)}
-              style={{ width: '8rem', padding: '0.3rem' }}
+              style={{ width: '8rem' }}
             />
           </label>
-          <button onClick={handleSend} disabled={!msgr || !selectedProvider || sending}>
+          <button className="btn btn-primary" onClick={handleSend} disabled={!msgr || !selectedProvider || sending}>
             {sending ? 'Sending…' : 'Send Intent'}
           </button>
         </div>
@@ -449,9 +453,7 @@ export default function IntentLab() {
 
       <section>
         <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem' }}>Providers</h3>
-        <pre style={{ background: '#f7f7f7', padding: '0.5rem', maxHeight: 240, overflow: 'auto' }}>
-          {JSON.stringify(providers, null, 2)}
-        </pre>
+        <PreWithCopy data={providers} maxHeight={240} />
       </section>
 
       {pendingUiRequest && (
@@ -535,9 +537,7 @@ export default function IntentLab() {
 
       <section>
         <h3 style={{ margin: '0 0 0.5rem 0', fontSize: '1rem' }}>Result</h3>
-        <pre style={{ background: '#f7f7f7', padding: '0.5rem', maxHeight: 320, overflow: 'auto' }}>
-          {result ? JSON.stringify(result, null, 2) : '—'}
-        </pre>
+        <PreWithCopy data={result || '—'} maxHeight={320} />
       </section>
     </div>
   );

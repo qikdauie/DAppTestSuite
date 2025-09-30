@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { getReadyDecentClient} from 'decent_app_sdk';
+import './styles.css';
 
 // SW is registered by the DecentClient singleton on first use
 // Proactively instantiate the singleton at startup to register the SW immediately
