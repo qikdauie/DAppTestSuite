@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "dev:3001": "vite --port 3001",
-    "build": "vite build && vite build --config vite.sw.config.js",
+    "build": "vite build",
+    "build:sw": "vite build --config vite.sw.config.js",
+    "postbuild": "vite build --config vite.sw.config.js",
     "preview": "vite preview --port 8080 --host",
     "start": "vite preview --port 8080 --host",
     "test": "vitest run",
