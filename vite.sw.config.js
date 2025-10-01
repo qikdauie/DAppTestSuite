@@ -15,13 +15,14 @@ export default defineConfig({
     ]
   },
   build: {
-    lib: {
-      entry: pathResolve(__dirname, 'src/sw.js'),
-      formats: ['es'],
-      fileName: () => 'sw'
-    },
     rollupOptions: {
-      output: { inlineDynamicImports: true }
+      input: {
+        sw: pathResolve(__dirname, 'src/sw.js'),
+      },
+      output: {
+        entryFileNames: 'sw.js',
+        inlineDynamicImports: true,
+      }
     },
     emptyOutDir: false
   }
