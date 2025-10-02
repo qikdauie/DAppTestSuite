@@ -19,7 +19,7 @@
   "dependencies": {
     "decent_app_sdk": "file:./submodules/decent_app_sdk",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.0",
