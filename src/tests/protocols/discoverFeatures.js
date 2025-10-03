@@ -42,7 +42,7 @@ export async function discoverDivergentFeaturesTest() {
   const matchers = [
     PIURI.ISSUE_CREDENTIAL_V2,
     PIURI.PRESENT_PROOF_V2,
-    PIURI.BASIC_MESSAGE_V1,
+    PIURI.BASIC_MESSAGE_V2,
   ];
 
   const caps = await msgr.protocols.discover(matchers, 800);
@@ -54,7 +54,7 @@ export async function discoverDivergentFeaturesTest() {
 
   const hasIssuer   = peers.some(p => featuresByPeer[p].includes(PIURI.ISSUE_CREDENTIAL_V2));
   const hasVerifier = peers.some(p => featuresByPeer[p].includes(PIURI.PRESENT_PROOF_V2));
-  const hasBasic    = peers.some(p => featuresByPeer[p].includes(PIURI.BASIC_MESSAGE_V1));
+  const hasBasic    = peers.some(p => featuresByPeer[p].includes(PIURI.BASIC_MESSAGE_V2));
 
   // Current instance does not disclose to itself; expect only the OTHER side's caps
   const port = (typeof window !== 'undefined' && window.location && window.location.port) ? window.location.port : '';
@@ -62,14 +62,14 @@ export async function discoverDivergentFeaturesTest() {
   let expected;
   if (port === '3000') {
     pass = hasVerifier && hasBasic; // expect 3001's present-proof + basicmessage
-    expected = [PIURI.PRESENT_PROOF_V2, PIURI.BASIC_MESSAGE_V1];
+    expected = [PIURI.PRESENT_PROOF_V2, PIURI.BASIC_MESSAGE_V2];
   } else if (port === '3001') {
     pass = hasIssuer && hasBasic;   // expect 3000's issue-credential + basicmessage
-    expected = [PIURI.ISSUE_CREDENTIAL_V2, PIURI.BASIC_MESSAGE_V1];
+    expected = [PIURI.ISSUE_CREDENTIAL_V2, PIURI.BASIC_MESSAGE_V2];
   } else {
     // Fallback: at least one of issuer/verifier plus basicmessage
     pass = (hasIssuer || hasVerifier) && hasBasic;
-    expected = ['(issuer OR verifier)', PIURI.BASIC_MESSAGE_V1];
+    expected = ['(issuer OR verifier)', PIURI.BASIC_MESSAGE_V2];
   }
 
   return {

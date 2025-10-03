@@ -2,7 +2,7 @@
 import { getReadyDecentClient} from 'decent_app_sdk';
 import { PIURI, MessageTypes, PermissionMethods } from 'decent_app_sdk/constants';
 
-const SAMPLE_PROTOCOL = PIURI.BASIC_MESSAGE_V1;
+const SAMPLE_PROTOCOL = PIURI.BASIC_MESSAGE_V2;
 const SAMPLE_PROTOCOL_NAME = 'DEV-Basic Message';
 const SAMPLE_PROTOCOL_DESCRIPTION = 'DEV-Send a basic message to a DID';
 const SAMPLE_MESSAGE_TYPE = MessageTypes.BASIC_MESSAGE.MESSAGE;
@@ -48,7 +48,7 @@ export async function requestDidcommPermissionsTest(requests = [
         { typeUri: MessageTypes.TRUST_PING.PING, description: 'DEV-Ping a DID to check if it is online' },
         { typeUri: MessageTypes.TRUST_PING.PING_RESPONSE, description: 'DEV-Ping response' }],
     requireAllMessageTypes: false },
-  { protocolUri: PIURI.BASIC_MESSAGE_V1, protocolName: 'DEV-Basic Message', description: 'DEV-Send a basic message to a DID', messageTypes: [
+  { protocolUri: PIURI.BASIC_MESSAGE_V2, protocolName: 'DEV-Basic Message', description: 'DEV-Send a basic message to a DID', messageTypes: [
     { typeUri: MessageTypes.BASIC_MESSAGE.MESSAGE, description: 'DEV-Send a basic message to a DID' }], requireAllMessageTypes: false },
   ]) {
   const msgr = await getReadyDecentClient();
@@ -63,7 +63,7 @@ export async function requestDidcommPermissionsTest(requests = [
   return { pass, request: { requests }, response: result, error: error ? String(error) : null };
 }
 
-export async function listGrantedDidcommPermissionsTest(protocols = [SAMPLE_PROTOCOL, PIURI.TRUST_PING_V2, PIURI.BASIC_MESSAGE_V1]) {
+export async function listGrantedDidcommPermissionsTest(protocols = [SAMPLE_PROTOCOL, PIURI.TRUST_PING_V2, PIURI.BASIC_MESSAGE_V2]) {
   const msgr = await getReadyDecentClient();
   try { await msgr.protocols.refresh(); } catch {}
   let result, error = null;
@@ -83,7 +83,7 @@ export async function requestAllDidcommPermissionsTest() {
 
   const requests = [
     {
-      protocolUri: PIURI.BASIC_MESSAGE_V1,
+      protocolUri: PIURI.BASIC_MESSAGE_V2,
       protocolName: 'Basic Messaging',
       description: 'DEV-Exchange text messages',
       messageTypes: [
